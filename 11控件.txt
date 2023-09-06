@@ -1,0 +1,118 @@
+创建一个新的control，选择widget类，打开ui界面，在左侧列表中：
+
+button类：
+1、更改按钮图标：先用前面的方法添加资源文件（图片），ui界面中新建一个按钮，选中，左下角找到icon，点击icon后面那个位置，再点击出现的↓箭头，点击“选择资源”，点击resource root，选择想要的图片，可以在左下找到iconsize更改图标大小。实际操作中一般选择左侧的toolbutton来放图标，现新建一个toolbutton，相同方法放完图片后，左下找到text，可以输入文字，再在左下找到toolbuttonstyle，改为toolbuttontextbesideicon（文字显示在图片后）（其它的也行），就可以看到文字了，若把左下的autoraise打勾，就可以把按钮变透明，当光标移到按钮上后才不透明
+2、radiobutton：单选按钮，现建两个radiobutton，运行后只能选择一个，一般用于性别之类的多选一。为了实现可以创建多个多选一，在左侧containers中找到group box,拖拽到中间，把需要多选一的radiobutton放进去，这个group box还可以进行命名（如“性别”中放“男”“女”的radiobutton），多建几个group box即可实现多个多选一
+设置其默认值：先选中“男”的那个radiobutton，在左下角找到objectname,改为rbtn_man，在widget.cpp中加ui->rbtn_man->setChecked(true);，注意改对象名后要编译一次才生效
+加上#include <QRadioButton>#include <QDebug>
+    //选中“女”，打印信息
+    connect(ui->rbtn_woman,&QRadioButton::clicked,[=](){
+        qDebug()<<"选中了“女”";
+    });
+3、checkbox：多选按钮，创建多个checkbox，也建个group box把它们放里面，现把一个checkbox名称改成cbox_price，在widget.cpp中添加#include <QCheckBox>
+    connect(ui->cbox_price,&QCheckBox::stateChanged,[=](int state){
+        qDebug()<<state;
+    });
+执行，发现选中cbox_price时输出2，取消选中时输出0
+选中一个checkbox，左侧找到tristate，打勾后执行，此时点击按钮第一下不是显示对勾，而是显示“-”，为半选状态，输出1，再次点击后才变成2，点2次后再点输出0，为没选状态
+
+item widgets类：
+左侧找到一个list widget,拖到中间，对象名为listWidget
+再在widget.cpp中#include <QListWidgetItem>  《下面都要添加对应控件的头文件》
+第一种方法，《创建完后都先编译一遍，下面所有类似方法的都是》
+       QListWidgetItem * item =new QListWidgetItem("111");
+    //将一行诗放入list widget中
+    ui->listWidget->addItem(item);
+    //设置居中显示
+    item->setTextAlignment(Qt::AlignHCenter);
+第二种方法（无法设置居中）#include <QStringList>
+       QStringList list;//qstringlist相当于c++中的list<string>
+    list<<"111"<<"222"<<"333";
+    ui->listWidget->addItems(list);
+
+tree widget类：
+创建一个新项目treewidget，选择qwidget
+左侧选择tree widget，拖到中间，对象名为treeWidget
+在widget.cpp中
+    //设置水平头
+    ui->treeWidget->setHeaderLabels(QStringList()<<"英雄"<<"英雄介绍");
+    //设置里面的一级标题
+    QTreeWidgetItem * item1 = new QTreeWidgetItem(QStringList()<<"力量");
+    //加载顶层的节点
+    ui->treeWidget->addTopLevelItem(item1);
+    //追加子节点
+    QTreeWidgetItem * l1 = new QTreeWidgetItem(QStringList()<<"l1");
+    item1->addChild(l1);
+这样就能实现创建一个包含"l1"的"力量"
+
+table widget类：
+创建一个新项目tablewidget，选择qwidget
+左侧选择table widget，拖到中间，对象名为tableWidget
+在widget.cpp中
+    //设置列数
+    ui->tableWidget->setColumnCount(3);
+    //设置水平表头
+    ui->tableWidget->setHorizontalHeaderLabels(QStringList()<<"姓名"<<"性别"<<"年龄");
+    //设置行数
+    ui->tableWidget->setRowCount(5);
+    //设置正文
+    QStringList namelist;
+    namelist<<"111"<<"222"<<"333"<<"444"<<"555";
+    QList<QString> sexlist;
+    sexlist<<"男"<<"男"<<"男"<<"女"<<"女";
+    for(int i=0;i<5;i++)
+    {
+        int col=0;
+        ui->tableWidget->setItem(i,col++,new QTableWidgetItem(namelist[i]));
+        ui->tableWidget->setItem(i,col++,new QTableWidgetItem(sexlist.at(i)));
+        //int转qstring
+        ui->tableWidget->setItem(i,col++,new QTableWidgetItem(QString::number(i+18)));
+    }
+这样能做出一个表格
+
+其他的控件：
+创建一个新项目other，选择qwidget
+1.左侧选择scroll area，拖到中间，放一个pushbutton放里面，多复制几个pushbutton，选中scroll area，点击上面的垂直对齐，现在这个scroll area就可以用鼠标滑轮进行滚动了
+2.左侧选择tool box，拖到中间，选中，左下角找到currenitetext可以改名，再点击tool box里面的另一个标签，可以改另一个标签的名，左上角选中tool box，右键，选择插入页，可以在当前页前/后新加入页，点击tool box里面的标签，中间会空出一片区域，该区域中可以添加各种元素，作为该页的专属设计
+3.左侧选择tab widget，拖到中间,同样方法可改名、插入页，每页都能放不同页面，通常用于网页设计
+4.左侧选择stacked widget，拖到中间，其他东西同上面的，不同之处是在编辑时可以按上面自带按钮进行翻页，运行时需要用另外的方法进行翻页
+现建一个有三页的stacked widget，每页分别放scroll area、tool box、tab widget，并在stacked widget外建三个同名的按钮对应每一页
+在widget.cpp中
+    //设置默认定位scrollarea
+    ui->stackedWidget->setCurrentIndex(2);
+
+    connect(ui->btn_scrollarea,&QPushButton::clicked,[=](){
+        ui->stackedWidget->setCurrentIndex(2);
+        //setCurrentIndex括号里的索引值在ui界面中选中栈控件每页后右下角current index里面找
+    });
+    connect(ui->btn_toolbox,&QPushButton::clicked,[=](){
+        ui->stackedWidget->setCurrentIndex(0);
+    });
+    connect(ui->btn_tabwidget,&QPushButton::clicked,[=](){
+        ui->stackedWidget->setCurrentIndex(1);
+    });
+5.左侧选择combo box，拖到中间
+    //下拉框,添加里面的内容
+    ui->comboBox->addItem("a");
+    ui->comboBox->addItem("b");
+    ui->comboBox->addItem("c");
+    //按按钮选择某项，新建一个按钮btn_select,点击后选中b
+    connect(ui->btn_select,&QPushButton::clicked,[=](){
+        ui->comboBox->setCurrentIndex(1);
+    //或者ui->comboBox->setCurrentText("b");
+    });
+6.plain text edit不支持选择字体、颜色、是否倾斜等（和text edit比），相当于记事本和word
+spin box:用上下箭头调整数字，double spin box是带小数的
+date/time edit：选择日期，时间
+horizontal/vertical scroll bar：水平/竖直滑动条
+
+7.利用label显示图片：
+拖一个label到中间，用前面方法添加一个资源文件（图片）
+在widget.cpp中，label是新创建对象的名称
+       ui->label->setPixmap(QPixmap(":/20230424230740.png"));
+还可以显示.gif的动图，注意添加qmovie头文件
+       QMovie * movie = new QMovie(":/1683559208214.gif");
+    ui->label->setMovie(movie);
+    //播放动图
+    ui->label->setScaledContents(true);//设置图片全填充
+    movie->start();

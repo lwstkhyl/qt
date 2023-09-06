@@ -1,0 +1,19 @@
+新建一个layout，打开ui界面，在右侧对象中移除menubar和statusbar
+一个登录界面：
+在左侧display widgets中找到label，点击，拖拽到中间，改成“用户名”，再在input widgets中找到line edit，拖拽到用户名的后面，再用同样方法创建一个“密码”和输入栏
+在左侧buttons里面找到push button创建2个按钮（与代码相同，更简便）--“退出”和“登录”
+
+设置水平对齐：
+1、（不推荐）在左侧layouts里面找到 horizontal layout，拖到中间，再把用户名及密码及其输入栏拖进去
+2、在左侧containers里面找到widget，拖到中间，再把用户名及其输入栏拖进去，在左侧对象--类里面点击widget，上面工具栏中有一个三条竖线的按钮表示水平对齐，点击，再用同样方式把密码及其输入栏设为水平，若顺序颠倒，直接在widget里面拖动label或输入栏进行交换即可
+再用同样方式把两个按钮放到一个widget里面。最后选中最大的widget，即右侧central widget，点击，选择三条横线（竖直对齐）
+
+调整界面：
+1、弹簧：若想让按钮居中，就在左侧spacers里面找到horizontal spacer，拖到按钮那个widget前，再拖一个到按钮widget后面，点击水平布局，也可以再拖一个到两个按钮中间，使它们间有点距离。若想让调整窗口大小时间距不变，就点击中间那个弹簧，在右下属性--值里面把sizetype改成fixed，设置一个合适的宽度（回车保存）。可以用同样方法让用户名和密码居中。若想更改垂直方向上的距离，就使用vertical spacer弹簧，注意此时要改的是高度，并且也要先设置成fixed再改。
+2、取消布局使输入栏整齐：右键central widget，点击布局，点击打破布局（或直接在上面工具栏中找到），此时弹簧的效果消失，删除弹簧，恢复最初的状态。新建一个widget，把用户名密码及其输入栏都拖进去，点击上面工具栏中的栅格布局，之后再对central widget竖直布局，用上面方法顶2根弹簧使用户名和密码居中，若还想让用户名和密码这两个词对齐，直接在label加空格就行
+3、更改框的大小：选中用户名和密码组成的那个框，左下角找到sizepolicy，将垂直策略改成fixed，再进行微调即可
+
+更改生成窗口的标题：可以使用setwindowtitle函数，也可以点击左上角的mainwindow，在右下找到windowtitle进行更改
+固定窗口大小：点击左上角的mainwindow，在左下角geometry里面设置默认宽高，再找到minimumsize和maximumsize，把里面的宽高都调成默认值即可
+更改主窗口里面的小窗口与其内部元素的间距：选中小窗口，左下角找到layout里面的layoutleft/top/right/bottommargin
+在输入密码时不显示明文：选中密码后的那个输入框，左下找到echommode点击,noecho是输入时什么都不显示（跟没输一样），password是输入字符变成实心黑球，passwordechoonedit是输入时明文，当光标移走后变成黑球

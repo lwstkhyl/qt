@@ -1,0 +1,23 @@
+在mywidget中：
+#include "mywidget.h"
+#include<qpushbutton.h>
+mywidget::mywidget(QWidget *parent)
+    : QWidget(parent)
+{
+    QPushButton* btn=new QPushButton;
+   // btn->show();//show以顶层的方式弹出窗口控件,也可写成(*btn).show()
+    btn->setParent(this); //把mywidget类设为btn的父类，是btn按钮在窗口中显示
+    btn->setText("第一个按钮");//把"第一个按钮"写在按钮上
+    //上面的操作都可以概括成下面这句
+    QPushButton* btn2=new QPushButton("第二个按钮",this);
+    //如果此时执行，第二个按钮会覆盖第一个
+    btn2->move(100,100);//移动第二个按钮
+    resize(600,400);//重置窗口大小，长600，高400，
+    //此时就不会覆盖了，但要把btn->show();注释掉
+    setWindowTitle("第一个窗口");//把显示出的exe的标题改变
+    setFixedSize(600,400);//锁定窗口大小
+    btn2->resize(50,50);//重置按钮大小
+}
+mywidget::~mywidget()
+{
+}

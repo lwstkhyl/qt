@@ -1,0 +1,32 @@
+新创建一个source的qmainwindow,把创建界面的那个打对勾
+
+点击左侧的“设计”，看到中间那个一堆小点点的窗口，上面“在这里输入”，点击，输入“文件”后回车保存，再点击文件，在其下面输入“new”（这块不能写中文）,在右侧”属性——值“的那个窗口中找到text（在点开”文件“的同时），把text的值改为中文即可（每一步都要回车保存），同样的方法再在文件下写一个”打开“，这两个框都能拖拽移动，这样就可以不写代码来实现新建菜单栏的功能
+在右侧”对象——类“里面找到source，右键，点击添加工具栏，再把下面”名称——使用“里面的actionnew和actionopen直接拖拽到上面的工具栏中，出现”打开“”新建“，右键它们可以添加分隔符
+在左侧找到dock widget，拖拽到中间，再在右侧”属性——值“的那个窗口中找到qdockwidget,可以更改允许范围等，这是铆接窗口
+在左侧找到textedit,也是拖拽到中间，这是核心部件
+
+    //设置“打开”的图标
+    ui->actionnew->setIcon(QIcon());//qicon里面可以添文件路径
+    //使用添加qt资源
+    //首先右键左侧source.cpp，点“在explore中显示”
+    //把图片文件（夹）放到刚刚弹出的这个文件夹中
+    //右键左侧的source，点击“add new”，左侧选择qt,中间“qt resource file",点击choose
+    //起个名“res”,下一步，完成
+    //在右侧(下方）找到res.qrc，右键“open in editer"，打开界面
+在属性上面那栏点击”add prefix“,前缀可以改成“/”，再点击”add files“,选中要添加的文件（图片） 注意不能有中文
+点击右下角”锤子（编译）“，会有一个文件夹在res.qrc下面
+回到source.cpp中
+    ui ->actionnew ->setIcon(QIcon());
+    //qicon括号里面填 ": +前缀名 +文件名 "
+    //文件名是左侧前缀名底下文件夹里显示的图片的名字
+Qt5.12.12版本需要:+前缀名+Saved Pictures+文件名，中间考虑用斜杠隔开（我的不需要）
+
+
+另一种添加资源文件的方法：先把要添加的资源复制，右键左侧的source，点击“add new”，左侧选择qt,中间“qt resource file",点击choose，起个名“res”,下一步，完成。在右侧(下方）找到res.qrc，右键选择“open in editer"，点击”add prefix“,前缀可以改成“/”，再点击”add files“,把所有资源粘贴进去，然后选中，此后操作同上
+
+资源文件过大：在qt文件夹中与项目名相同的文件夹内右键->在终端内打开->输入rcc -binary .\res.qrc -o plane.rcc，其中res.qrc是报错的资源文件名，plane.rcc是要修改后的名称
+把新出现的文件复制到qt文件夹中build-项目名-debug的文件夹下
+在main.cpp中添加#include <QResource>，main函数中添加QResource::registerResource("./plane.rcc");
+之后在.pro中删掉RESOURCES += \   res.qrc \res.qrc
+使用文件就是":res/app.ico"    app.ico即为想要用的资源
+    

@@ -1,0 +1,164 @@
+创建新项目painter，选qwidget
+绘图事件：
+不写void，直接写paint---就能自动补全
+在widget.h中
+void paintEvent(QPaintEvent *event);
+在widget.cpp中
+void Widget::paintEvent(QPaintEvent *event)
+{
+    //实例化画家对象
+    QPainter painter(this);//this参数指定绘图设备，在当前的widget下画画       
+    //设置画笔
+    QPen pen(QColor(255,0,0));
+    //让画家使用这根笔
+    painter.setPen(pen);
+    //设置笔的宽度（默认值为1）
+    pen.setWidth(3);
+    //设置画笔风格
+    pen.setStyle(Qt::DotLine);
+    //设置画刷以及其填充色
+    QBrush brush(Qt::cyan);//青色，也可以用qcolor
+    //设置画刷的风格
+    brush.setStyle(Qt::Dense7Pattern);
+    //让画家使用这个画刷
+    painter.setBrush(brush);
+
+    painter.drawLine(QPoint(0,0),QPoint(100,100));//画线
+    painter.drawEllipse(QPoint(100,100),50,50);//圆心为100，100；x轴和y轴半径均为50（一个圆）
+    painter.drawRect(QRect(20,20,50,50));//前两个参数为画矩形起始点，后两个参数长宽
+    painter.drawText(QRect(100,100,50,100),"abc");在矩形内写文字
+}
+
+
+高级设置：
+在上面的区块内
+    QPainter painter(this);
+    painter.drawEllipse(QPoint(100,50),50,50);
+    painter.drawEllipse(QPoint(200,50),50,50);
+    //设置抗锯齿能力
+    painter.setRenderHint(QPainter::Antialiasing);
+    //设置高清后效率较低
+
+    //画两个重叠的矩形
+    painter.drawRect(QRect(20,20,50,50));
+    painter.drawRect(QRect(20,20,50,50));
+    //发现只显示一个，把代码改成：
+    painter.drawRect(QRect(20,20,50,50));
+    painter.translate(100,0);//让画家移动（100，0），从移动后的位置开始画
+    painter.drawRect(QRect(20,20,50,50));
+
+    把代码改成
+    painter.drawRect(QRect(20,20,50,50));
+    painter.translate(100,0);
+    painter.save();//保存画家状态
+    painter.drawRect(QRect(20,20,50,50));
+    painter.translate(100,0);
+    painter.restore();//还原画家保存状态
+    painter.drawRect(QRect(20,20,50,50));
+此时只显示两个矩形，第三个矩形和第二个重叠
+
+
+画家也可以画图片：
+在上面的区块内
+    QPainter painter(this);
+    painter.drawPixmap(100,100,QPixmap(":/20230424230740"));
+    //在（100，100）的位置画图片
+现在想加一个按钮，一按图片就往右移
+先在widget.h中添加int pos_x=0;//表示默认x位置的变量
+在widget.cpp中，Widget::Widget(QWidget *parent)里面
+    connect(ui->pushButton,&QPushButton::clicked,[=](){
+        pos_x+=20;
+        update();//调用paintevent来更新图片
+    });
+外面的void Widget::paintEvent(QPaintEvent *event)内
+    QPainter painter(this);
+    //如果超出屏幕，从0开始
+    if(pos_x>this->width())
+    {
+        pos_x=0;
+    }
+    painter.drawPixmap(pos_x,0,QPixmap(":/20230424230740"));
+
+现在设计一个带定时器的painter，图片自动平移，并设置一个按钮控制开始/停止
+在Widget::Widget(QWidget *parent)中
+    QTimer * timer = new QTimer(this);
+    connect(timer,&QTimer::timeout,[=](){
+        pos_x+=20;
+        update();
+    });
+    connect(ui->pushButton,&QPushButton::clicked,[=](){
+        static bool a=false;
+        if (a==true)
+        {
+            timer->stop();
+            a=false;
+        }
+        else
+        {   timer->start(50);
+            a=true;
+        } 
+    });
+painter函数和上面保持相同
+
+
+
+绘图设备：
+创建新项目painterdevice,选widget类
+    //pixmap绘图设备，专门为平台做了显示的优化
+    QPixmap pix(300,300);//两个参数是宽高,是纸张大小
+    //填充颜色
+    pix.fill(Qt::white);
+    //声明画家对象
+    QPainter painter(&pix);
+    painter.setPen(QPen(Qt::green));
+    painter.drawEllipse(QPoint(150,150),100,100);
+    //保存
+    pix.save("D:\\qt\\pix.png");//把画出的图片保存到对应路径，图片大小就是纸张大小
+
+    //qimage绘图设备
+    QImage img(300,300,QImage::Format_RGB32);//前两个参数同上，最后一个参数是格式
+    img.fill(Qt::white);//后面操作同上
+    QPainter painter(&img);
+    painter.setPen(QPen(Qt::blue));
+    painter.drawEllipse(QPoint(150,150),100,100);
+    img.save("D:\\qt\\img.png");
+现在添加一张资源图片，在widget.h中添加
+void paintEvent(QPaintEvent *event);
+在widget.cpp中最外层
+void Widget::paintEvent(QPaintEvent *event)
+{
+    //利用qimage对像素进行修改
+    QPainter painter(this);
+    QImage img(":/20230424230740.png");//加载图片
+    //修改像素点
+    for(int i=50;i<100;i++)
+        for(int j=50;j<100;j++)
+        {
+            QRgb value=qRgb(255,0,0);//像素点对象
+            img.setPixel(i,j,value);前两个参数为想修改像素点的位置，第三个为想修改成的样子
+        }
+    painter.drawImage(0,0,img);
+    painter.drawImage(0,0,img);
+}
+
+
+qpicture绘图设备,可以记录和重现绘图指令
+在Widget::Widget(QWidget *parent)中
+    QPicture pic;
+    QPainter painter;
+    painter.begin(&pic);//开始往pic上画
+    painter.setPen(QPen(Qt::cyan));
+    painter.drawEllipse(QPoint(150,150),100,100);
+    painter.end();//结束画画
+    //保存
+    pic.save("D:\\qt\\pic.wth");//这个文件打不开（后缀名叫什么都行）
+在paintevent函数中
+       QPicture pic;
+    QPainter painter(this);
+    pic.load("D:\\qt\\pic.wth");
+    painter.drawPicture(0,0,pic);//在（0，0）点加载输出的图片，不是从该点开始画圆
+
+除此之外，还有qbitmap(画黑白画)，qwidget也是画图设备，可以直接在上面画
+
+
+

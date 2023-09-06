@@ -1,0 +1,61 @@
+在20230406最上面的总文件处右键，新建一个c++class文件mypushbutton,basic类选择qwidget
+在2程序的基础上：
+mypushbutton.h:
+#ifndef MYPUSHPUTTON_H
+#define MYPUSHPUTTON_H
+#include<qpushbutton.h>
+class mypushputton : public QPushButton
+{
+    Q_OBJECT
+public:
+    explicit mypushputton(QWidget *parent = nullptr);
+    ~mypushputton();
+signals:
+};
+#endif 
+
+
+
+mypushbutton.cpp:
+#include "mypushputton.h"
+#include<QDebug>
+mypushputton::mypushputton(QWidget *parent) : QPushButton(parent)
+{
+ qDebug()<<"我的按钮类构造调用";
+}
+mypushputton::~mypushputton()
+{
+    qDebug()<<"我的按钮类析构";
+}
+
+
+
+mywidget.cpp:
+#include "mywidget.h"
+#include<qpushbutton.h>
+#include<mypushputton.h>
+#include<QDebug>
+mywidget::mywidget(QWidget *parent)
+    : QWidget(parent)
+{
+    mypushputton * mybtn=new mypushputton;
+    mybtn->setText("我的按钮");
+    mybtn->move(200,0);
+    mybtn->setParent(this);//设置到对象数中
+}
+mywidget::~mywidget()
+{
+    qDebug()<<"mywidget的析构调用";
+}
+
+
+此时输出：
+我的按钮类构造调用
+mywidget的析构调用
+我的按钮类析构
+
+因为程序正常先从最子类开始释放内存，在父类应该被析构时，先找父类的子类，但这个过程中会执行父类 的析构函数且内存不释放，依此类推，到某个子类没有子类时，会执行其析构函数并释放内存，依次往上再释放其父类的内存，直到所有父类内存释放完毕。即释放是在析构之后执行的
+
+
+
+

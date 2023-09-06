@@ -1,0 +1,71 @@
+创建新项目dialog（新项目的名称不能与qt中任一头文件相同）,用上节课方法在设计界面中加一个有”新建“的工具栏
+
+对话框有两种，模态对话框：不可以对其他窗口进行操作，非模态对话框：可以
+模态对话框创建：在source.cpp中
+添加头文件#include <QDialog>
+         #include <QDebug>
+在    ui->setupUi(this);下面添加
+    connect(ui->actionnew,&QAction::triggered,[=](){
+        QDialog dlg(this);
+    //更改下对话框的大小
+        dlg.resize(1000,500);
+        dlg.exec();
+        qDebug()<<"弹出";
+    });
+弹出时不能对其他窗口进行操作，且关闭窗口后才输出“弹出”
+
+
+非模态对话框创建：把lambda表达式中的内容改成
+              QDialog * dlg2=new QDialog(this);
+        dlg2->resize(1000,500);
+        dlg2->show();
+        qDebug()<<"非模态弹出";
+此时只要点击“新建”，同时弹出窗口和输出
+              //设置属性：防止重复点击新建使占用内存过多，因为内存要在关闭主窗口时才释放
+        dlg2->setAttribute(Qt::WA_DeleteOnClose);
+        //这样在关闭弹出窗口时就会释放这部分窗口的内存
+以上接着dlg2->show();写
+
+
+标准对话框：在qt assitant里还有很多种，不止下面列举的
+1、错误对话框：QMessageBox::critical(this,"critical","错误");
+"critical"是标题，"错误"是对话框中显示的内容，是一个模态对话框
+2、信息对话框：QMessageBox::information(this,"info","信息");
+参数同上，也是模态的
+3、警告对话框：QMessageBox::warning(this,"warning","警告");
+4、提问对话框QMessageBox::question(this,"ques","提问",QMessageBox::Save|QMessageBox::Cancel);
+后面的两个参数可以设置在弹出窗口上的两个按钮
+还可以设置第五个参数，控制默认选中的项，按回车时会执行默认选中的项，不设置的时候默认为第一个按钮即QMessageBox::Save
+QMessageBox::question(this,"ques","提问",QMessageBox::Save|QMessageBox::Cancel,QMessageBox::Cancel);
+
+这些按钮点击时会返回对应的值，即点击保存就会返回QMessageBox::Save
+        if(QMessageBox::Save==QMessageBox::question(this,"ques","提问",QMessageBox::Save|QMessageBox::Cancel))
+        {
+            qDebug()<<"选择的是保存";
+        }
+点击保存时会输出"选择的是保存"
+
+上述几种对话框都能设置第4、5个参数，但若只有一个按钮，第5个参数就没意义了
+
+5、颜色对话框：QColorDialog::getColor(QColor(255,0,0));
+(255,0,0)是默认选中的颜色（red,green,blue)
+QColor color = QColorDialog::getColor(QColor(255,0,0));
+qDebug()<<color.red();  这样可以知道选择颜色的red,green,blue值
+
+6、文件对话框：QFileDialog::getOpenFileName(this,"打开文件","C:\\Users\\17185");
+第三个参数是需要打开的路径，比如可以默认打开桌面
+QFileDialog::getOpenFileName(this,"打开文件","C:\\Users\\17185","(*.txt)");
+第四个参数（*.xxx)是只显示的文件格式，比如可以只显示txt文件
+返回值为qstring，是选取文件的路径
+
+7、字体对话框
+bool flag;
+QFont font = QFontDialog::getFont(&flag,QFont("华文彩云",36));
+第一个参数是一个bool值（不必给赋值），QFont中一个参数是默认选择的字体，第二个是字号
+返回值qfont可以有:字体--字号--是否加粗--是否倾斜
+qDebug()<<font.family()<<font.pointSize()<<font.bold()<<font.italic();
+
+8、取值对话框int a =QInputDialog::getInt(this,"取值","输入整数",1);
+第四个参数是默认取值，返回输入的值，类似还有getdouble,gettext等
+
+        

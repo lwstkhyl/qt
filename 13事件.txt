@@ -1,0 +1,186 @@
+创建新项目event，选widget
+
+鼠标事件：
+在左侧最上面event中右键，add new，选c++class,名称设置为mylabel，base class选qwidget
+在mylabel.h中，public下
+       //鼠标进入事件
+    void enterEvent(QEvent *event);
+    //鼠标离开事件
+    void leaveEvent(QEvent *);
+在mylabel.cpp中，最外面
+//鼠标进入事件
+void mylabel::enterEvent(QEvent *event)
+{
+    qDebug()<<"鼠标进入";
+}
+//鼠标离开事件
+void mylabel::leaveEvent(QEvent *)
+{
+    qDebug()<<"鼠标离开";
+}
+把mylabel.h中#include <QWidget>改成#include <QLabel>和class mylabel : public QWidget改成class mylabel : public QLabel，mylabel.cpp中mylabel::mylabel(QWidget *parent) : QWidget(parent)改成mylabel::mylabel(QWidget *parent) : QLabel(parent)
+在widget，ui界面中，把创建的label提升为mylabel，为了使label更明显，可以在右下qframe中把frameshape换一个
+注意enterEvent和leaveEvent使系统给定的函数，不能改名
+
+现在写鼠标的按下、移动、释放事件
+在mylabel.h中，public下
+    void mouseMoveEvent(QMouseEvent *ev) ;
+    void mousePressEvent(QMouseEvent *ev) ;
+    void mouseReleaseEvent(QMouseEvent *ev) ;//这几个函数都能自动补全
+在mylabel.cpp中
+void mylabel::mouseMoveEvent(QMouseEvent *ev) 
+{
+    qDebug()<<"鼠标移动";//在按下鼠标的同时移动鼠标
+}
+//鼠标按下
+void mylabel::mousePressEvent(QMouseEvent *ev) 
+{
+    qDebug()<<"鼠标按下";        
+}
+//鼠标释放
+void mylabel::mouseReleaseEvent(QMouseEvent *ev) 
+{
+    qDebug()<<"鼠标释放";
+}
+现在还可以捕捉点击时的xy坐标，在void mylabel::mousePressEvent(QMouseEvent *ev) 中
+       QString str=QString("坐标为：x = %1,y = %2").arg(ev->x()).arg(ev->y());
+    //第一个.arg里面的内容会在%1中显示，后面同理
+    qDebug()<<str;
+ev的globalx、globaly是在整个电脑屏幕中的坐标（不是widget窗口中的）,x、y是在label中的
+
+当鼠标左键按下才打印信息：在执行语句前添加判断条件
+if(ev->button()==Qt::LeftButton)//右键是rightbutton，滚轮是midbutton
+但是若把这个条件加到鼠标移动语句前，就会发现按住左键移动时不会输出信息，因为移动时不会进行判断（移动时ev->button()不会返回值），需要改成if(ev->buttons() & Qt::LeftButton)，此时左右键同时按下会输出，或者if(ev->buttons() == Qt::LeftButton)，此时同时按不会输出
+
+现在想在不按下鼠标的情况下也知道鼠标的移动，
+在mylabel::mylabel(QWidget *parent) : QLabel(parent)区域块内添加
+       //设置鼠标追踪状态
+    setMouseTracking(true);
+并把move里面的改成
+        QString str=QString("按下，坐标为：x = %1,y = %2").arg(ev->globalX()).arg(ev->globalY());
+     qDebug()<<str;
+
+
+定时器控件：
+第一种方式：事件
+拖一个label到中间
+在widget.h的public下：
+       //重写定时器事件
+    void timerEvent(QTimerEvent *);
+在widget.cpp中的Widget::Widget(QWidget *parent)区域里：
+       //启动定时器
+    startTimer(1000);
+    //参数1是执行间隔,单位是ms
+区域外
+void Widget::timerEvent(QTimerEvent *)
+{
+    static int num=1;  //必须是static
+    ui->label_1->setText(QString::number(num++));
+}
+若想建两个定时器，就再拖一个label
+在widget.h的public下：
+       //重写定时器事件
+    void timerEvent(QTimerEvent *);
+    int id1;//定时器1的id
+    int id2;//定时器2的id
+在widget.cpp中的Widget::Widget(QWidget *parent)区域里：
+    //启动定时器
+    id1=startTimer(1000);
+    //参数1是执行间隔,单位是ms,返回值是定时器的id
+    id2=startTimer(2000);
+区域外
+void Widget::timerEvent(QTimerEvent *ev)
+{
+    if(ev->timerId()==id1)
+    {
+        static int num1=1;//timer1每隔1秒加一
+        ui->label_1->setText(QString::number(num1++));
+    }
+    if(ev->timerId()==id2)
+    {
+        static int num2=1;//timer2每隔2秒加一
+        ui->label_2->setText(QString::number(num2++));
+    }
+}
+若想设置到一定时间停止，就在if(ev->timerId()==id1)中添加
+             if(num1==4)
+        {
+            killTimer(id1);
+        }
+这样定时器会在显示3时停止
+
+第二种方式：定时器类
+在Widget::Widget(QWidget *parent)区域内
+       QTimer * timer = new QTimer(this);
+    //启动定时器
+    timer->start(500);//每隔500ms发送一个信号
+    connect(timer,&QTimer::timeout,[=](){
+        static int num=1;
+        ui->label_new->setText(QString::number(num++));
+    });
+这种方法如果想要再来一个定时器直接再写个new timer就行了
+现想添加一个按钮，点击使定时器暂停
+拖一个按钮到中间，接着前面写
+    connect(ui->pushButton,&QPushButton::clicked,[=](){
+        timer->stop();
+    });
+若想按同一个按钮实现暂停和继续，就把lambda表达式里面内容换成
+    static bool a=true;
+    if (a==true)
+    {
+        timer->stop();
+        a=false;
+    }
+    else
+    {   timer->start(500);
+        a=true;
+    }
+
+当程序被打开时，程序会分发事件，包括手动触发（鼠标操作）和自动触发（定时器）。但这一分发过程不是程序直接执行的，会通过专门的事件分发器 bool event(QEvent * ev),若返回值是true，代表用户要处理这个事件，不向下分发事件。
+在mylabel.h中添加
+    //通过event事件分发器拦截鼠标按下事件
+    bool event(QEvent *ev);
+在mylabel.cpp中
+bool mylabel::event(QEvent *ev)
+{
+    //如果鼠标按下，在event事件分发中作拦截操作
+    if(ev->type()==QEvent::MouseButtonPress)  //type判断鼠标操作
+    {
+        QMouseEvent *ev1=static_cast<QMouseEvent *>(ev);
+        //因为qevent类型中没有坐标函数，所以需要类型转换
+        QString str=QString("event函数中，鼠标按下x = %1,y = %2").arg(ev1->globalX()).arg(ev1->globalY());
+        qDebug()<<str;
+        return true;
+    }
+    //其他事件，交给父类处理（默认处理）
+    return QLabel::event(ev);
+}
+输出结果为当鼠标按下一瞬间执行新函数，一般事件分发器不作拦截操作
+
+事件过滤器，可以在程序分发到event事件之前再做一次高级的拦截，使用有2个步骤--给控件安装事件过滤器、重写eventfilter事件
+在widget.cpp中Widget::Widget(QWidget *parent)里面
+    //给label安装事件过滤器
+    ui->label_new->installEventFilter(this);
+在widget.h的public下面
+    //重写事件过滤器的事件
+    bool eventFilter(QObject *watched, QEvent *event);
+在widget.cpp中Widget::Widget(QWidget *parent)外面
+    bool Widget::eventFilter(QObject *obj, QEvent *e)
+    {
+        if(obj==ui->label_new)//判断是否拦截对象正确
+            //如果鼠标按下，在event事件分发中作拦截操作
+            if(e->type()==QEvent::MouseButtonPress)
+            {
+                QMouseEvent *ev1=static_cast<QMouseEvent *>(e);
+                QString str=QString("事件过滤器中，鼠标按下x = %1,y = %2").arg(ev1->globalX()).arg(ev1->globalY());
+                qDebug()<<str;
+                return true;
+            }
+        //其他事件，交给父类处理（默认处理）
+        return QWidget::eventFilter(obj,e);
+    }
+此时不会输出上面的“event函数中”，而是输出过滤器函数
+注意上面的label_new也得是mylabel类，要不事件分发器不执行，不能体现过滤器的优先级
+
+
+输入eventfilter没自动补全的可能解决方法：帮助->插件->clang找到ClongCodeModel,一般这里是默认勾选的，把这个勾选去掉。再重启一下Qt

@@ -1,0 +1,54 @@
+在最开始的窗口上设置一个按钮open和另一按钮close2，点击open后弹出另一个窗口，之后open按钮变为close1，再次点击关闭弹出窗口。或者直接点击close2也会关闭弹出窗口
+在widget.cpp中：
+#include "widget.h"
+#include "ui_widget.h"
+#include <QPushButton>
+#include <QWidget>
+#include <QDebug>
+widget::widget(QWidget *parent)
+    : QMainWindow(parent)
+    , ui(new Ui::widget)
+{
+    ui->setupUi(this);
+    QWidget *one=new QWidget;//创建一个新窗口
+    QPushButton *btn1=new QPushButton(this);
+    QPushButton *btn2=new QPushButton(this);
+    resize(500,500);
+    btn1->move(100,200);
+    btn2->move(300,200);
+    btn1->setText("open");
+    btn2->setText("close");
+    bool widget_open=false;//检测是否弹出了窗口
+    connect(btn1,&QPushButton::clicked,one,[=,&widget_open](){
+        if(widget_open==false)//只有当没有按钮时才
+        {
+            one->show();   //使要弹出的窗口显示
+            btn1->setText("close");
+            widget_open=true;
+        }
+        else
+        {
+            one->close();
+            btn1->setText("open");
+            widget_open=false;
+        }
+    });
+    connect(btn2,&QPushButton::clicked,one,[=,&widget_open](){
+        if(widget_open==true)//只有窗口弹出才能用第二个按钮关
+        {
+            one->close();
+            btn1->setText("open");
+            widget_open=false;
+        }
+        else qDebug()<<"未有弹出窗口";
+    });
+    QPushButton *close_btn=new QPushButton(this);
+    close_btn->setText("关闭");
+    connect(close_btn,&QPushButton::clicked,this,&widget::close);
+}
+
+widget::~widget()
+{
+    delete ui;
+}
+

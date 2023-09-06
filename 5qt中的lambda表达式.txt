@@ -1,0 +1,28 @@
+ 修改按钮内容  
+    [=](){       //值传递和引用传递均可修改按钮内容，
+        btn->setText("aaa");//调用的btn需要从主函数中捕获，=默认值传递
+    }();//因为lambda表达式本身相当于函数名，需要在后面再加上一个()才能进行调用，
+        //类比创建一个void print(); 调用时要写print();
+mutable声明：在上面的基础上增加
+       QPushButton * btn2=new QPushButton(this);
+    btn2->move(100,100);
+    int m=10;
+    connect(btn,&QPushButton::clicked,this,[m]()mutable{m+=100;qDebug()<<m;});//必须加上mutable修改m的值，但只是修改m在表达式里的拷贝，仍不改变m本体的值
+    connect(btn2,&QPushButton::clicked,this,[=](){qDebug()<<m;});
+    qDebug()<<m;
+程序开始输出m,每点击一次btn,输出的m增加100，但点击btn2，永远都输出10
+
+[]()->int{}    表示指定返回值为int
+
+利用lambda表达式实现点击按钮关闭窗口
+在widget.cpp中，原代码不变
+       QPushButton *btn=new QPushButton(this);
+    btn->setText("关闭");
+    btn->move(100,100);
+    connect(btn,&QPushButton::clicked,this,[=](){  //这块尽量不要用引用传递&，有可能报错
+        this->close();
+        st->treat();
+        btn->setText("aa");//点击后改名
+    });  //一个lambda表达式可以进行多步操作
+这样点完后即关闭窗口又输出“请老师吃饭”
+如果connect中第三个参数是this，第四个参数是lambda表达式，则this可省略，直接    connect(btn,&QPushButton::clicked,lambda）；0

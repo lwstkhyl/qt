@@ -1,0 +1,61 @@
+创建新项目file，选widget类
+先在ui界面中做一个widget，一个line edit和按钮，都拖到widget里，再在外面放一个text edit，整体垂直布局
+现在想实现点击按钮选取文件，路径放到line edit，文件中的内容放到text edit中
+在Widget::Widget(QWidget *parent)中
+    //点击按钮，弹出文件对话框
+    connect(ui->pushButton,&QPushButton::clicked,[=](){
+        QString path= QFileDialog::getOpenFileName(this,"打开文件","D:\\qt");
+        //将路径放入line edit中
+        ui->lineEdit->setText(path);
+        //读取内容放入text edit中
+        QFile file(path);//参数就是读取文件的路径
+        //设置打开方式
+        file.open(QIODevice::ReadOnly);//方式为只读
+        QByteArray array = file.readAll();//把所有内容放入array
+        //将读取到的数据放入text edit中
+        ui->textEdit->setText(array);
+        //对文件对象进行关闭
+        file.close();
+    });
+注意默认格式为utf_8，若要读取的文本不是utf_8，可以用以下操作，在connect中添加
+        //编码格式类qtextcode，codec表示gbk类
+        QTextCodec * codec=QTextCodec::codecForName("gbk");
+        //把array转成gbk格式进行输出
+        ui->textEdit->setText(codec->toUnicode(array));
+并注释掉原输出代码
+
+也可以设置按行读
+        QByteArray array;
+        while(!file.atEnd())//只要没到文件尾就继续读
+        {
+            array+=file.readLine();//按行读
+        }
+
+
+现在还可以向里面写，接着上面的
+        //进行写文件
+        file.open(QIODevice::Append);//用追加的方式进行写（原有内容删了重新写是writeonly）
+        file.write("abc");
+        file.close();
+
+
+现在对文件的相关信息进行读取，利用qfileinfo
+在connect函数内
+        QFileInfo info(path);//设置路径
+        qDebug()<<"大小："<<info.size();
+        qDebug()<<"后缀名："<<info.suffix();
+        qDebug()<<"文件名称："<<info.fileName();
+        qDebug()<<"文件路径："<<info.filePath();
+输出
+大小： 26
+后缀名： "txt"
+文件名称： "file.txt"
+文件路径： "D:/qt/file.txt"
+还可以读修改/创建日期
+若直接写qDebug()<<"创建日期："<<info.created();
+则输出  创建日期： QDateTime(2023-05-16 22:55:16.406 中国标准时间 Qt::LocalTime)
+改成qDebug()<<"创建日期："<<info.created().toString("yyyy/MM/dd hh:mm:ss");
+输出"2023/05/16 22:55:16"这样更方便
+qDebug()<<"最后修改日期"<<info.lastModified().toString("yyyy/MM/dd hh:mm:ss");
+
+

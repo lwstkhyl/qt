@@ -1,0 +1,167 @@
+窗口坐标系：以左上角为原点，x向右增加，y向下增加
+
+按钮->点击--窗口->关闭窗口
+函数connect(信号的发送者，发送的具体信号（函数地址）--信号的接收者，信号的处理（槽函数）)
+信号槽的优点：松散耦合--信号发送端和接受端本身是没有关联的，通过connect连接，将两端耦合在一起
+具体信号：clicked--点击，pressed--按下按钮，released--松开按钮，toggled--在两种状态中切换
+
+代码实现：在已经创建btn按钮的前提下
+connect(btn,&QPushButton::clicked,this,&mywidget::close);
+其中
+具体信号前要加地址，this指这个窗口（在widget类下写的），close是槽函数
+
+自定义信号和槽：设计teacher和student类，下课后，teacher触发信号，student响应信号
+现创建一个新文件，基础设置同上一个，在最上面的总文件夹20230415右键，创建新文件c++class,name:teacher,base class:qobject,只选中include qobject。同样方法创建一个student类，这些新创建的类都会自动放到头文件和源文件的文件夹中
+
+teacher.h：
+#ifndef TEACHER_H
+#define TEACHER_H
+#include <QObject>
+class teacher : public QObject
+{
+    Q_OBJECT
+public:
+    explicit teacher(QObject *parent = nullptr);
+signals:
+    //自定义信号写到这里面
+    //返回值void，只需要声明，不需要在同名cpp中实现
+    //可以有参数，可以重载，每次重载都需声明
+    void hungry();
+    void hungry(QString food_name);//这一重载函数必须声明
+};
+#endif // TEACHER_H
+
+student.h:
+#ifndef STUDENT_H
+#define STUDENT_H
+#include <QObject>
+class student : public QObject
+{
+    Q_OBJECT
+public:
+    explicit student(QObject *parent = nullptr);
+    //槽函数在高版本直接写在这就行，低版本写到public slots下
+    //返回值void，需要声明也需要实现(在同名cpp文件中）
+    //可以有参数，可以重载
+    void treat();
+    void treat(QString food_name);
+signals:
+};
+#endif // STUDENT_H
+
+widget.h:
+#ifndef WIDGET_H
+#define WIDGET_H
+#include <QWidget>
+#include "teacher.h"
+#include "student.h"
+QT_BEGIN_NAMESPACE
+namespace Ui { class widget; }
+QT_END_NAMESPACE
+class widget : public QWidget
+{
+    Q_OBJECT
+public:
+    widget(QWidget *parent = nullptr);
+    ~widget();
+private:
+    Ui::widget *ui;
+    //widget.cpp中使用的对象名和函数名需要在头文件中声明
+    teacher * zt;
+    student * st;
+    void class_is_over();
+};
+#endif // WIDGET_H
+
+student.cpp:
+#include "student.h"
+#include <QDebug>
+student::student(QObject *parent) : QObject(parent)
+{
+}
+void student::treat()
+{
+    qDebug()<<"请老师吃饭";
+}
+void student::treat(QString food_name)
+{
+    //把qstring先转成qbytearray转成char*,这样输出food_name时没有引号
+    //qDebug()<<"老师要吃"<<food_name;
+    qDebug()<<"老师要吃"<<food_name.toUtf8().data();
+}
+
+widget.cpp:
+#include "widget.h"
+#include "ui_widget.h"
+widget::widget(QWidget *parent)
+    : QWidget(parent)
+    , ui(new Ui::widget)
+{
+    ui->setupUi(this);
+    //创建一个老师对象
+    this->zt = new teacher(this);
+    //创建一个学生对象
+    this->st = new student(this);
+    //老师饿了，学生请客的连接
+    //connect(zt,&teacher::hungry,st,&student::treat);
+    //_________________________
+    //当有重载时，用函数指针指向地址，明确函数是具体什么重载
+    void(teacher:: *teacher_signal)(QString)=&teacher::hungry;
+    void(student:: *student_slot)(QString)=&student::treat;
+    connect(zt,teacher_signal,st,student_slot);
+    //调用下课函数
+    class_is_over();
+
+}
+void widget::class_is_over()
+{
+    //下课函数，调用后，触发老师饿了的信号
+    //emit 发送函数
+    emit zt->hungry("chicken");
+yi
+}
+widget::~widget()
+{
+    delete ui;
+}
+
+main.cpp和teacher.cpp不改
+实现原理：connect的时候确定了对应关系，然后通过调用class_is_over函数emit相应的信号hungry，把参数"chicken"传给相应的槽treat，要求hungry和treat有相同形参形式(QString food_name)
+
+现在在程序中加一个按钮，点击后再class_is_over();
+在widget.cpp中，class_is_over();后面加上：
+    //设置一个按钮：
+    QPushButton * btn =new QPushButton("下课",this);
+    //重置窗口大小
+    this->resize(600,400);
+    //点击按钮下课
+    connect(btn,&QPushButton::clicked,this,&widget::class_is_over);
+    //this就是widget对象，相当于上面teacher类的zt
+
+无参的信号和槽连接：
+在widget.cpp中，只保留创建老师和学生的对象、按钮：
+       void(teacher:: *teacher_signal2)(void)=&teacher::hungry;
+    void(student:: *student_slot2)(void)=&student::treat;
+    connect(zt,teacher_signal2,st,student_slot2);
+    //信号连接信号
+    connect(btn,&QPushButton::clicked,zt,teacher_signal2);
+以上的两个connect可以用一个 connect(btn,&QPushButton::clicked,st,student_slot2);代替，因为clicked也是一个信号
+此时点击按钮，会调用无参的treat，输出“请老师吃饭”
+
+断开信号：
+disconnect(btn,&QPushButton::clicked,zt,teacher_signal2);
+
+注意：
+1、信号可以连接信号
+2、一个信号可以连接多个槽函数
+3、多个信号可以连接同一个槽函数
+4、信号和槽函数的参数必须类型一一对应，但参数个数不必须一致，信号的参数个数可以比槽函数的多
+信号clicked有一个参数，可以连接void参数的槽函数（0个参数），但不能连接（qstring）类型的槽函数
+
+利用qt4版本信号槽连接：
+    connect(zt,SIGNAL(hungry()),st,SLOT(treat()));
+相当于connect(zt,&teacher::hungry,st,&student::treat);
+优点：参数直观，缺点：类型不做检测，即把上面的treat()变成treat(qstring)，仍可执行，但无法实现预期功能
+
+
+

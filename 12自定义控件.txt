@@ -1,0 +1,43 @@
+创建一个新项目smallwidget，选widget
+点击最上面的smallwidget，右键，选add new,左侧选qt,中间选qt设计师界面类，再选widget，命名为small_widget，现在想封装一个带滑动条的选数器，动其中任意一个，另一个也跟着动
+左侧选一个spin box和horizontal slider拖到中间，点大窗口，选择水平对齐，调整到一个合适的大小
+之后回到编辑界面，先进入左侧small_widget.h里面把class后面的类名复制（防止类名出错），再进入widget.ui,左侧拖一个widget到中间（因为刚刚封装的类是widget类），右键，选提升为，粘贴到“提升的类名称”，点击添加，再点击提升。若选择“全局包含”，再次创建widget并右键时多出了一个“提升为”，可以直接使用small_widget
+
+在small_widget中，确定两个对象的名称分别为spinBox和horizontalSlider
+在small_widget.cpp中
+       //spinbox改变，qslider也跟着移动
+    //因为valueChanged有重载，需要用函数指针
+    void(QSpinBox::*sp_signal) (int) = &QSpinBox::valueChanged;
+    connect(ui->spinBox,sp_signal,ui->horizontalSlider,&QSlider::setValue);
+    //qslider移动，spinbox改变
+    connect(ui->horizontalSlider,&QSlider::valueChanged,ui->spinBox,&QSpinBox::setValue);
+
+现新添加功能，加一个按钮，点击后输出当前值，再加一个恢复默认状态的按钮，先再small_widget中添加对应的函数，注意要在同名头文件中声明
+在small_widget.h的public下添加
+    //设置数字
+    void set_number(int num);
+    //获取数字
+    int get_number();
+在small_widget.cpp中，widget作用域外（和析构函数同级）
+//设置数字
+void small_widget::set_number(int num)
+{
+    ui->spinBox->setValue(num);
+}
+//获取数字
+int  small_widget::get_number()
+{
+    return ui->spinBox->value();
+}
+
+现在把这两个函数关联的widget的按钮中
+在widget.ui中创建两个按钮，对象名分别为set_value_0和get_value
+在widget.cpp中， ui->setupUi(this);下面：
+       //点击获取当前值
+    connect(ui->get_value,&QPushButton::clicked,[=](){
+        qDebug()<<ui->widget->get_number();//这里的widget已经包含了small_widget，所以可以直接从widget里调用在small_widget中创建的函数
+    });
+    //恢复默认值
+    connect(ui->set_value_0,&QPushButton::clicked,[=](){
+        ui->widget->set_number(0);
+    });
