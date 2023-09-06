@@ -1,0 +1,146 @@
+qtcpserver类：在network模块内，使用时需要在.pro文件内添加，基类为qobject
+bool listen(const qhostaddress& address = qhostaddress::any,quint16 port = 0)-绑定本地IP地址，并设置监听，使用时const qhostaddress& address可以设置默认参数，但quint16 port必须指定一个端口，否则会随机选择端口，这样使用者就不能知道确切的端口，quint16取值为0-65535，建议使用8000-10000以上的端口
+bool islistening() const-判断当前对象是否在监听，是则返回true，否则返回false
+qtcpsocket* qtcpsocket::nextpendingconnection()-得到和客户端建立连接之后用于通信的套接字对象qtcpsocket，是qtcpserver的一个子对象，当qtcpserver对象析构时会自动先析构这个子对象，也可以自己手动析构
+bool waitfornextconnection(int msec=0,bool* timedout=q_nullptr)-阻塞等待客户端发起的连接请求（不推荐在单线程程序中使用），接收的第一个参数是指定阻塞的最大时长，第二个参数如果操作超时为true
+void newconnection()-每次又新连接可用时都会发出该信号
+void accepterror(qabstractsocket::socketerror)-当接收新连接出错时发出，参数描述发生的错误
+
+qtcpsocket类：继承qabstractsocket，也是在network模块内
+接收数据用read方法（有不同格式的，包括c字符串和qt中的qbytearray类的）
+发送数据用write方法，也是分不同格式
+void connected()-当连接建立时发出该信号
+void disconnected()-在两端已经建立连接时，其中一端断开连接，此时另一端就会收到该信号
+void readyread()-有数据到达某端时，该端就会收到该信号，表面可以调用read进行接收
+注意我们操作的数据都是内存中的数据而不是网络中的，当收到数据时，qt会维护一块内存存储这些数据；同样，发出数据也不是直接发到网络中，是把数据存到一块内存中，qt自动把该内存的数据发送到网络中
+
+基本流程-服务器端：
+1、创建套接字服务器qtcpserver对象
+2、通过这个对象设置监听（listen）
+3、基于qtcpserver::newconnection()信号检测是否有新的客户端连接
+4、如果有新的客户端连接就调用qtcpsocket* qtcpsocket::nextpendingconnection()得到通信的套接字对象
+5、使用套接字对象qtcpserver和客户端进行通信（read和write）
+基本流程-客户端：
+1、创建通信的qtcpsocket对象
+2、使用服务器端绑定的IP和端口连接服务器（qabstractsocket::connecttohost())
+3、使用qtcpsocket对象和服务器进行通信
+
+服务器端界面包含：一个用于输入端口的输入框，一个启动服务器的按钮；一个显示通信记录的文本框；一个用于发送数据的输入框；一个发送数据的按钮；最下面还有一个显示连接状态的label (每个分号表示一部分）
+
+创建名为qt_server的项目，基类为qmainwindow
+1、服务器ui的搭建：（括号内表示控件上写的文字）
+第一部分：拖一个widget，再在里面放一个label（端口：）、line edit、pushbutton（启动服务器）并水平布局，label用于显示文字，将line edit变量名改为port，按钮改为set_listen       
+第二部分：一个groupbox，里面放一个text edit并水平/垂直布局，标题改为“历史信息”，text edit的变量名改为record
+第三部分：将上面的groupbox复制粘贴，标题为“发送的信息”，text edit的变量名改为msg
+第四部分：拖一个widget，里面放一个按钮（发送信息），两边各放一根弹簧，点击水平布局使按钮居中，按钮变量名改为send_msg
+最后选中最大的widget，垂直布局，调整一下窗口总大小
+
+2、服务器端套接字通信处理
+.pro文件第一行改为QT += core gui network 
+mainwindow.h下添加：
+    QTcpServer* m_s;
+    QTcpSocket* m_tcp;
+
+mainwindow.cpp下MainWindow::MainWindow(QWidget *parent)中添加：
+    m_s=new QTcpServer(this);//创建监听的服务器对象
+    m_tcp=new QTcpSocket(this);//创建套接字对象
+    setWindowTitle("服务器");//设置窗口栏名称
+    ui->port->setText("8899");//显示端口号
+    connect(ui->set_listen,&QPushButton::clicked,[=](){//点击启动按钮启动监听
+        unsigned short port=ui->port->text().toUShort();//port是端口号
+        m_s->listen(QHostAddress::Any,port);//设置监听
+        ui->set_listen->setDisabled(true);//将按钮设为不可用
+    });//对于按钮的connect操作，也可以在ui中右键按钮点击“转到槽”，直接在新建的函数中写上面lambda中的内容
+    connect(m_s,&QTcpServer::newConnection,[=](){//检测有无新连接
+        m_tcp=m_s->nextPendingConnection();//当有新连接时将套接字对象实例化
+        connect(m_tcp,&QTcpSocket::readyRead,[=](){//检测是否接收到了数据，必须写在QTcpSocket* m_tcp=m_s->nextPendingConnection()下，因为此时m_tcp才被实例化
+            QByteArray data=m_tcp->readAll();//存储接收到的数据（客户端发来的）
+            ui->record->append("客户端发送消息为："+data);//把接收到的数据显示到文本框中
+        });
+    });
+    connect(ui->send_msg,&QPushButton::clicked,[=](){//点击发送消息的按钮就发送消息
+        QString msg=ui->msg->toPlainText();//将输入框中的内容以纯文本的方式取出来存入msg中
+        m_tcp->write(msg.toUtf8());//将msg转为utf-8(qbytearray)类型进行发送
+        ui->record->append("服务器端发送消息为："+msg);//将服务器端发送的消息显示到文本框中
+    });
+
+3、服务器端状态栏的处理
+mainwindow.h下添加：
+    QLabel* m_status;
+
+mainwindow.cpp下MainWindow::MainWindow(QWidget *parent)中添加：
+    m_status=new QLabel;//因为还要把它设置到状态栏内，所以指不指定父对象无所谓
+    m_status->setPixmap(QPixmap(":/cuo.png").scaled(20,20));//默认为未连接状态，并把图片尺寸设为20*20
+    //直接在左侧右键图片文件，点击copy path就可以快速复制路径
+    ui->statusbar->addWidget(new QLabel("连接状态："));//添加一个显示文字的qlabel
+    ui->statusbar->addWidget(m_status);//将qlabel添加到状态栏中，statusbar是ui自带的状态栏对象
+
+mainwindow.cpp下connect(m_s,&QTcpServer::newConnection,[=]()下添加：（有新连接时的connect下）
+        m_status->setPixmap(QPixmap(":/dui.png").scaled(20,20));//有新连接时就换成连接状态的图片
+        connect(m_tcp,&QTcpSocket::disconnected,[=](){
+            m_tcp->close();//当套接字对象断开时tcp服务端也断开
+            m_tcp->deleteLater();//释放内存，也可以不写这行
+            m_status->setPixmap(QPixmap(":/cuo.png").scaled(20,20));//设为未连接状态
+
+4、客户端ui界面：包括服务器端口和地址的输入框，“连接服务器”和“断开连接”的按钮；一个显示通信记录的文本框；一个发送数据的输入框，一个“发送数据”的按钮；一个连接状态的label
+因为客户端代码与界面和服务端类似，直接qt目录下复制粘贴出一个qt_client
+在它的ui界面中选中第一部分的widget，打破布局，按CTRL选中第一部分的三个控件，复制粘贴到第一部分的widget中，选中第一部分的widget，点“栅格布局”并调整控件位置、名称。将地址的输入框变量名改为ip,“连接服务器”按钮改为connect，
+“断开连接”按钮改为disconnect
+
+5、客户端通信处理流程
+在.h和.cpp中删去所有和qtcpserver有关的内容，因为客户端只需qtcpsocket而不用qtcpserver
+mainwindow.cpp下MainWindow::MainWindow(QWidget *parent)中添加：（代替之前的）
+    m_tcp=new QTcpSocket(this);//创建套接字对象
+    ui->port->setText("8899");//显示端口号
+    ui->ip->setText("127.0.0.1");//显示ip地址
+    setWindowTitle("客户端");//设置窗口栏名称
+    connect(ui->connect,&QPushButton::clicked,[=](){//点击连接服务器按钮
+        QString ip=ui->ip->text();//得到IP输入框中的输入信息
+        unsigned short port=ui->port->text().toShort();//得到端口输入框中的输入信息
+        m_tcp->connectToHost(QHostAddress(ip),port);//连接服务器
+    });    
+    connect(ui->send_msg,&QPushButton::clicked,[=](){//点击发送消息按钮
+        QString msg=ui->msg->toPlainText();
+        m_tcp->write(msg.toUtf8());//将信息发送给服务端
+        ui->record->append("客户端发送消息为："+msg);
+    });
+    connect(ui->disconnect,&QPushButton::clicked,[=](){//点击断开连接按钮
+       m_tcp->close();//断开连接
+    });
+    connect(m_tcp,&QTcpSocket::readyRead,[=](){//检测是否接收到了数据
+        QByteArray data=m_tcp->readAll();//存储接收到的数据（服务器端发来的）
+        ui->record->append("服务器端发送消息为："+data);//把接收到的数据显示到文本框中
+    });
+    connect(m_tcp,&QTcpSocket::disconnected,[=](){//服务器端断开连接
+        m_tcp->close();//当套接字对象断开时tcp客户端也断开
+        m_tcp->deleteLater();
+        m_status->setPixmap(QPixmap(":/cuo.png").scaled(20,20));
+        ui->record->append("连接已断开");
+    });
+    connect(m_tcp,&QTcpSocket::connected,[=](){//当成功连接到服务器时
+        m_status->setPixmap(QPixmap(":/dui.png").scaled(20,20));
+        ui->record->append("成功连接到服务器");//显示成功连接
+    });
+    m_status=new QLabel;
+    m_status->setPixmap(QPixmap(":/cuo.png").scaled(20,20));
+    ui->statusbar->addWidget(new QLabel("连接状态："));
+    ui->statusbar->addWidget(m_status);
+
+6、实现按钮的互斥点击：因为点击“连接服务器”按钮之前无法断开连接，所以此时“断开连接”的按钮就不能被点击而当服务器连接成功后“连接服务器”按钮也不能被点击，因此这两个按钮是互斥的状态
+mainwindow.cpp下MainWindow::MainWindow(QWidget *parent)中添加：
+    ui->disconnect->setDisabled(true);//开始未连接至服务器是不能点击“断开连接”按钮
+
+connect(m_tcp,&QTcpSocket::connected,[=]()中添加：（即连接成功时）
+        ui->connect->setDisabled(true);//连接成功后不能点击“连接服务器”按钮
+        ui->disconnect->setEnabled(true);//连接成功后可以点击“断开连接”按钮
+
+connect(m_tcp,&QTcpSocket::disconnected,[=]()中添加：（即断开连接时）
+        ui->connect->setDisabled(false);//断开连接后可以点击“连接服务器”按钮
+        ui->disconnect->setEnabled(false);//断开连接后不可点击“断开连接”按钮
+
+connect(ui->disconnect,&QPushButton::clicked,[=]()中添加：（即断开连接时）
+        ui->connect->setDisabled(false);//断开连接后可以点击“连接服务器”按钮
+        ui->disconnect->setEnabled(false);//断开连接后不可点击“断开连接”按钮
+
+7、测试
+右键qt_client和qt_server的总文件，都点击“运行”，先点服务器端“启动服务器”，再点客户端“连接服务器”，此时就可以实现两端的互发消息
