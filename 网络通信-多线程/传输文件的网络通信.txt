@@ -1,0 +1,175 @@
+在之前的基础上把发string改成发送文件，为了优化运行速度，把之前的通信流程都改成在子线程里运行
+新建项目send_file_client，基类为qmainwindow
+
+基本流程-客户端（任务类）：
+创建任务类，包括套接字对象、发送文件函数、连接服务器函数，连接失败和成功的信号（传给主线程），主线程中需要传给任务类开始连接的信号、发送文件的信号
+
+1、客户端ui界面：包括IP输入框（变量名为ip），端口输入框（port），连接服务器的按钮（connect_server）；选择文件的按钮（sel_file），显示文件路径的输入框（file_path）；一个进度条，即progress bar；一个居中的发送文件的按钮（send_file）
+
+mainwindow.cpp中MainWindow::MainWindow(QWidget *parent)下添加
+    ui->ip->setText("127.0.0.1");
+    ui->port->setText("8989");
+    ui->progressBar->setRange(0,100);//设置进度条的显示值范围
+    ui->progressBar->setValue(0);//设置进度条的当前值
+
+2、使用之前的第二种方式（任务类）来创建多线程，创建c++class，名为send_file，基类为qobject，该类（子线程）负责连接服务器和发送文件
+关于进度条：为了能够显示进度，需要在发送文件内容的循环中添加static变量来记录已经发送的文件大小，且这个大小需要通过一个信号传给主线程；同时为了确定什么时候文件发送结束，服务器需要知道文件的总大小
+send_file.h中添加：
+public:
+    explicit send_file(QObject *parent = nullptr);
+    void connect_server(unsigned short port,QString ip);//连接服务器，参数为端口和IP
+    void send_file_fun(QString path);//发送文件，参数为路径
+    QTcpSocket* m_tcp;//套接字对象
+signals:
+    void connect_win();//连接成功的信号
+    void connect_fail();//连接失败的信号
+    void current_percent(int num);//进度条显示数值
+
+send_file.cpp中添加：
+void send_file::connect_server(unsigned short port, QString ip)
+{
+    m_tcp=new QTcpSocket;//实例化套接字对象
+    m_tcp->connectToHost(QHostAddress(ip),port);//连接到服务器
+    connect(m_tcp,&QTcpSocket::connected,this,[=](){
+        emit connect_win();
+    });//若套接字对象与服务器连接成功就发送成功的信号
+    connect(m_tcp,&QTcpSocket::disconnected,this,[=](){
+        m_tcp->close();
+        m_tcp->deleteLater();
+        emit connect_fail();
+    });//若没连接（断开连接）就发送连接失败的信号
+}
+void send_file::send_file_fun(QString path)
+{
+    QFile file(path);//使用路径创建文件对象
+    QFileInfo info(path);
+    int file_size=info.size();//文件大小
+    file.open(QFile::ReadOnly);//因为不需要对文件进行修改，所以用只读方式打开文件
+    while(file.atEnd()==false)//当文件读完后atEnd()为true
+    {
+        static int num=0;//循环次数/已经发送的文件大小
+        if(num==0)//如果是第一次循环，就把文件大小发送给服务器
+            m_tcp->write((char*)&file_size,4);//第一个参数为文件大小，第二个参数为内容占字节数
+        QByteArray line=file.readLine();//文件一次循环读一行，line存储这行内容
+        num+=line.size();//记录已经发送的文件大小，从而计算进度条
+        int progress_percent=(num*100/file_size);//进度条数值
+        emit current_percent(progress_percent);//将进度条数值发送给主线程
+        m_tcp->write(line);//将内容传给套接字对象来进行发送
+    }
+}
+
+mainwindow.h中添加：
+signals:
+    void start_connect(unsigned short port,QString ip);//开始连接的信号，负责连接按钮和任务类
+    void send_file_signal(QString path);//发送文件的信号，由主线程传给任务类
+
+mainwindow.cpp中MainWindow::MainWindow(QWidget *parent)下添加
+    QThread* t=new QThread;//创建线程对象
+    send_file* worker=new send_file;//创建任务类对象
+    worker->moveToThread(t);//将任务类移动到线程对象中
+
+    connect(ui->connect_server,&QPushButton::clicked,[=](){//点击连接服务器按钮
+        QString ip=ui->ip->text();
+        unsigned short port=ui->port->text().toShort();
+        emit start_connect(port,ip);//发送开始连接的信号
+    });
+    connect(this,&MainWindow::start_connect,worker,&send_file::connect_server);//连接开始连接信号和任务类
+
+    connect(ui->sel_file,&QPushButton::clicked,[=](){//点击选择文件按钮
+        QString path=QFileDialog::getOpenFileName();//弹出选择文件窗口并保存路径
+        if(path.isEmpty()==true)
+        {
+            QMessageBox::warning(this,"打开文件","选择的文件路径不能为空");
+            return;//如果选择路径为空就不往下执行
+        }
+        ui->file_path->setText(path);
+    });
+
+    connect(ui->send_file,&QPushButton::clicked,[=](){//点击发送文件按钮
+        emit send_file_signal(ui->file_path->text());
+    });
+    connect(this,&MainWindow::send_file_signal,worker,&send_file::send_file_fun);//连接发送文件信号和任务类
+
+    //处理任务类给主线程发送的信号↓
+    connect(worker,&send_file::connect_win,this,[=](){//注意这里必须要有this，因为不写this时槽函数在信号来源处（子线程）调用，报错 Cannot set parent, new parent is in a different thread
+        QMessageBox::information(this,"连接服务器","已经成功连接到了服务器");//弹出提示框
+    });
+    connect(worker,&send_file::connect_fail,[=](){
+        //进行资源释放↓
+        t->quit();
+        t->wait();
+        worker->deleteLater();
+        t->deleteLater();
+    });
+    connect(worker,&send_file::current_percent,ui->progressBar,&QProgressBar::setValue);//设置进度条值
+
+    t->start();//启动子线程
+
+3、服务器端
+基本流程-服务器端（线程类）：
+run函数负责接收数据并把数据写入一个文件，完成文件复制，需要循环执行run()函数以便保持监听状态，主线程负责创建一个服务器对象并检测新连接，当有新连接时就创建套接字对象并传给子线程
+
+点击左侧“欢迎”，创建新项目send_file_server，基类为qmainwindow，因为服务器端的处理过程较少，所以用第一种方式（线程类）来写子线程，创建c++class，名为receive_file，基类为qobject，用之前的方法更改.h和.cpp，使其继承qthread
+ui界面：一个label（端口），一个lineedit（port），一个启动服务器的按钮（set_liste）
+
+mainwindow.h下public中添加：
+    QTcpServer* m_s;//服务器对象指针
+
+mainwindow.cpp中MainWindow::MainWindow(QWidget *parent)下添加：
+    m_s=new QTcpServer(this);//实例化服务器对象
+    ui->port->setText("8989");//设置端口号
+    connect(ui->set_listen,&QPushButton::clicked,[=](){//点击启动服务器按钮
+        unsigned short port=ui->port->text().toUShort();
+        m_s->listen(QHostAddress::Any,port);//启动监听
+    });
+    connect(m_s,&QTcpServer::newConnection,[=](){//有新连接时
+        QTcpSocket* tcp=m_s->nextPendingConnection();//得到套接字对象
+        receive_file* sub_thread=new receive_file(tcp);//创建子线程，同时把tcp传给子线程
+        sub_thread->start();//启动子线程
+        connect(sub_thread,&receive_file::over,[=](){//文件传输结束时
+            sub_thread->exit();//释放资源↓
+            sub_thread->wait();
+            sub_thread->deleteLater();
+            QMessageBox::information(this,"文件接收","文件接收完毕");
+        });
+    });
+
+receive_file.h:
+public:
+    explicit receive_file(QTcpSocket* tcp,QObject *parent = nullptr);//直接用构造函数进行传参，这样就不用再单独写一个函数了
+    QTcpSocket* m_tcp;//套接字对象
+protected:
+    void run() override;
+signals:
+    void over();//文件读取完全
+
+receive_file.cpp:
+receive_file::receive_file(QTcpSocket* tcp,QObject *parent) : QThread(parent)
+{
+    m_tcp=tcp;
+}
+void receive_file::run()
+{
+    QFile* file=new QFile("receive.txt");//这个路径是想把接收到的文件存储在哪，具体路径在build-send_file_server下
+    file->open(QFile::WriteOnly);//以只写方式打开文件
+    connect(m_tcp,&QTcpSocket::readyRead,[=](){
+        static int count=0;//因为每接收到一次文件就会有一个readyread信号并执行一次connect，所以可以用static变量来记录是第几次接收信息/已经接收到文件的大小
+        static int total=0;//存储文件总大小
+        if(count==0)//如果是第一次接收到信号，那就是客户端发来的文件总大小信息
+            m_tcp->read((char*)&total,4);//读取4个字节的文件总大小信息，存在total中
+        QByteArray all=m_tcp->readAll();//读取剩下的数据
+        file->write(all);
+        count+=all.size();//递增已经接收到的大小
+        if(count==total)//当数据全部读完时
+        {
+            m_tcp->close();//关闭套接字对象
+            m_tcp->deleteLater();//释放资源↓
+            file->close();
+            file->deleteLater();
+            emit over();
+        }
+    });
+    //因为正常的run方法只在start时执行一次，而在这里我们不能确定什么时候会接收到数据执行connect操作，所以要让run方法在start后一直执行
+    exec();//进入事件循环
+}
+
