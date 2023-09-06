@@ -1,0 +1,673 @@
+新建项目名称为game1，类名为main_scene,基类选qmainwindow
+
+1-ui界面的创建
+先在mainScene::mainScene(QWidget *parent)中
+    //配置主场景
+    //设置固定大小
+    setFixedSize(700,1000);
+    //设置图标
+    setWindowIcon(QIcon(":/Coin0001.png"));
+    //设置标题
+    setWindowTitle("翻金币主场景");
+再在ui中，移除statusbar，建一个“开始”工具栏，里面写一个“退出”，再在mainScene中
+    //退出按钮的实现
+    connect(ui->actionquit,&QAction::triggered,[=](){
+        this->close();
+    });
+2-现在做背景，先再头文件中void paintEvent(QPaintEvent *);再在mainScene中
+void mainScene::paintEvent(QPaintEvent *)
+{
+    //画背景图片
+    QPainter painter(this);
+    QPixmap pix;
+    pix.load(":/PlayLevelSceneBg.png");
+    painter.drawPixmap(0,0,this->width(),this->height(),pix);
+    //前两个参数为起始位置，第3，4个参数为把图片拉伸成窗口大小
+
+    //画背景上的图标
+    pix.load(":/Title.png");
+    //缩放图片
+    pix=pix.scaled(pix.width()*0.5,pix.height()*0.5);//都缩小成0.5倍
+    painter.drawPixmap(10,30,pix);
+}
+
+
+3-开始按钮的创建
+先创建一个c++class，名称my_pushbutton，基类qwidget,在其头文件中把#include <Qwidget>改成#include <QPushButton>，并把explicit my_pushbutton(QWidget *parent = nullptr);注释掉，把class my_pushbutton : public Qwidget改成class my_pushbutton : public QPushButton，public里加上
+    my_pushbutton(QString normal_img,QString press_img="");
+    //参数1：正常显示的图片路径，参数2：按下后显示的图片路径
+    QString normal_img_path;
+    QString press_img_path;
+    //成员属性：保存用户传入的默认显示路径和按下后的路径
+其.cpp文件中把原构造函数注释，加上
+my_pushbutton::my_pushbutton(QString normal_img,QString press_img)
+{
+    this->normal_img_path=normal_img;
+    this->press_img_path=press_img;
+    QPixmap pix;
+    bool ret= pix.load(normal_img);//判断是否加载图片成功
+    if(!ret)
+    {
+        qDebug()<<"图片加载失败";
+        return;
+    }
+    //设置图片固定大小
+    this->setFixedSize(pix.width(),pix.height());
+    //设置不规则图片样式，如果不加会把按钮图片周围的空白背景也显示
+    this->setStyleSheet("QPushButton{border:0px;}");
+    //设置图标
+    this->setIcon(pix);
+    //设置图标大小
+    this->setIconSize(QSize(pix.width(),pix.height()));
+}
+在mainscene中，加上#include <my_pushbutton.h>
+    //写开始按钮
+    my_pushbutton *start_btn = new my_pushbutton(":/MenuSceneStartButton.png");
+    start_btn->setParent(this);
+    start_btn->move(this->width()*0.5-start_btn->width()*0.5,this->height()*0.7);//注意这块不是正中间
+
+4-现在想做一个点击按钮后按钮弹起的特效
+在按钮头文件中声明
+    void zoom1();//向上跳
+    void zoom2();//向下跳
+再在.cpp中加上#include <QPropertyAnimation>
+void my_pushbutton::zoom1()
+{
+    //创建动态对象
+    QPropertyAnimation * animation = new QPropertyAnimation(this,"geometry");
+    //第一个参数为目标，第二个参数为特效名
+    animation->setDuration(200);//时间间隔
+    animation->setStartValue(QRect(this->x(),this->y(),this->width(),this->height()));//起始位置
+    animation->setEndValue(QRect(this->x(),this->y()+10,this->width(),this->height()));//结束位置（往上移10）
+    animation->setEasingCurve(QEasingCurve::OutBounce);//设置弹跳效果
+    animation->start();//执行动画   
+}
+void my_pushbutton::zoom2()
+{
+    QPropertyAnimation * animation = new QPropertyAnimation(this,"geometry");
+    animation->setDuration(200);
+    animation->setStartValue(QRect(this->x(),this->y()+10,this->width(),this->height()));
+    //注意这步中开始位置是y()+10，说明按钮的y值再执行完向上跳后未改变
+    animation->setEndValue(QRect(this->x(),this->y(),this->width(),this->height()));
+    animation->setEasingCurve(QEasingCurve::OutBounce);
+    animation->start();  
+}
+在主窗口中
+    connect(start_btn,&my_pushbutton::clicked,[=](){
+        //做一个弹起的特效
+        start_btn->zoom1();
+        start_btn->zoom2();
+    });
+
+5-点开始按钮进入场景
+先创建一个c++class，名称choose_level_scene，基类qmainwindow
+在主窗口头文件中加上#include "choose_level_scene.h"，public里加上choose_level_scene * choose_scene= NULL;
+在主窗口cpp中，connect(start_btn,&my_pushbutton::clicked,[=](){前加上
+    //实例化选择关卡场景
+    choose_scene=new choose_level_scene;
+connect中加上
+        QTimer::singleShot(500,this,[=](){//在0.5后让this执行下面的函数
+            this->hide();//自身隐藏
+            choose_scene->show();//显示选择关卡场景
+        });//此时按钮跳完之后才进入下个场景
+
+6-选择关卡场景创建
+在choose_level_scene.cpp中，默认构造函数中
+    //配置选择关卡场景
+    this->setFixedSize(320,588);//设置大小
+    this->setWindowIcon(QIcon(":/Coin0001.png"));//设置图标
+    this->setWindowTitle("选择关卡场景");//设置标题
+    QMenuBar * bar=menuBar();//创建菜单栏
+    setMenuBar(bar);
+    QMenu * start_menu=bar->addMenu("开始");//创建开始菜单
+    QAction * quit_action=start_menu->addAction("退出");//创建退出菜单项
+    connect(quit_action,&QAction::triggered,[=](){
+        this->close();
+    });
+头文件中重现绘图事件
+.cpp中（直接抄主窗口中的就行）
+void choose_level_scene::paintEvent(QPaintEvent *)
+{
+    QPainter painter(this);
+    QPixmap pix;
+    pix.load(":/OtherSceneBg.png");
+    painter.drawPixmap(0,0,this->width(),this->height(),pix);
+    pix.load(":/Title.png");
+    pix=pix.scaled(pix.width()*0.5,pix.height()*0.5);
+    painter.drawPixmap(10,30,pix.width(),pix.height(),pix);
+}
+
+7-返回按钮的创建（默认状态和点击时的状态切换）
+在choose_level_scene.cpp构造函数中（注意添加头文件）
+    my_pushbutton * back_btn =new       my_pushbutton(":/BackButton.png",":/BackButtonSelected.png");
+    back_btn->setParent(this);
+    back_btn->move(this->width()-back_btn->width(),this->height()-back_btn->height());//把按钮放到右下角
+    //点击后返回
+    connect(back_btn,&my_pushbutton::clicked,[=](){
+        
+    });
+在mypushbotton头文件中
+    //重现按钮的按下和释放事件
+    void mousePressEvent(QMouseEvent *e);
+    void mouseReleaseEvent(QMouseEvent *e);
+在mypushbotton.cpp中
+void my_pushbutton::mousePressEvent(QMouseEvent *e)
+{
+    if(this->press_img_path!="")//判断是否传入图片->是否切换图片
+    {
+        //用上面的方法加载
+        QPixmap pix;
+        bool ret= pix.load(this->press_img_path);
+        if(!ret)
+        {
+            qDebug()<<"图片加载失败";
+            return;
+        }
+        this->setFixedSize(pix.width(),pix.height());
+        this->setStyleSheet("QPushButton{border:0px;}");
+        this->setIcon(pix);
+        this->setIconSize(QSize(pix.width(),pix.height()));
+    }
+    //让父类执行其他内容
+    return QPushButton::mousePressEvent(e);
+}
+void my_pushbutton::mouseReleaseEvent(QMouseEvent *e)
+{
+    //用上面的方法还原
+    if(this->press_img_path!="")
+    {
+        QPixmap pix;
+        bool ret= pix.load(this->normal_img_path);
+        if(!ret)
+        {
+            qDebug()<<"图片加载失败";
+            return;
+        }
+        this->setFixedSize(pix.width(),pix.height());
+        this->setStyleSheet("QPushButton{border:0px;}");
+        this->setIcon(pix);
+        this->setIconSize(QSize(pix.width(),pix.height()));
+    }
+    return QPushButton::mouseReleaseEvent(e);
+}
+
+8-关卡选择场景和开始场景间切换
+点击back时告诉主场景  我返回了，主场景监听关卡选择场景的返回按钮
+在关卡选择场景头文件中signals底下
+       //写一个自定义信号，告诉主场景点击了返回
+    void choose_scene_back();
+在.cpp中
+    connect(back_btn,&my_pushbutton::clicked,[=](){
+        QTimer ::singleShot(500,this,[=](){//设置延迟返回，若不想延时就直接写发送信号
+            emit this->choose_scene_back();
+        });
+    });
+在mainscene.cpp中mainScene::mainScene(QWidget *parent)下 new start_btn之后加上
+    //监听选择关卡的返回按钮的信号
+    connect(choose_scene,&choose_level_scene::choose_scene_back,this,[=](){
+        choose_scene->hide();//将选择关卡场景隐藏掉
+        this->show();//重新显示主场景
+    });
+    
+9-选择关卡按钮（1-20关）的创建
+在选择关卡场景.cpp接着上面写
+    for(int i=0;i<20;i++)
+    {
+        my_pushbutton * menu_btn= new my_pushbutton(":/LevelIcon.png");
+        menu_btn->setParent(this);
+        //用%和/控制move距离
+        menu_btn->move(25+i%4*70,130+i/4*70);//加号前的是起始距离
+    }
+等效方法：
+    QVector<my_pushbutton*> btn;
+    for(int i=0;i<20;i++)
+    {
+        my_pushbutton * menu_btn= new my_pushbutton(":/LevelIcon.png");
+        menu_btn->setParent(this);
+        btn.push_back(menu_btn);
+    }
+    for(int i=0;i<20;i++)
+    {
+        btn[i]->move(25+i%4*70,130+i/4*70);
+    }
+
+10-在选择按钮上写字
+在for循环里接着写
+        QLabel * label=new QLabel;
+        label->setParent(this);
+        label->setFixedSize(menu_btn->width(),menu_btn->height());
+        label->setText(QString::number(i+1));
+        label->move(25+i%4*70,130+i/4*70);
+        //这样是把label和按钮重合，但数字是从左往右写的
+        label->setAlignment(Qt::AlignHCenter|Qt::AlignVCenter);//设置label上文字对齐方式：水平居中和垂直居中
+如果是在按钮上写数字会乱
+
+11-监听点击选择按钮
+如果直接在label创建后加上
+        connect(menu_btn,&my_pushbutton::clicked,[=](){
+            QString str=QString::number(i+1);
+            qDebug()<<str;
+        });
+会没有反应，因为label会遮挡点击的效果，是点击不能穿透到按钮上，需要在label创建后加上
+        //设置让鼠标能穿透label
+        connect(menu_btn,&my_pushbutton::clicked,[=](){
+            QString str=QString::number(i+1);
+            qDebug()<<str;
+            //进入到游戏场景
+            this->hide();//将选关场景隐藏掉
+            play = new play_scene(i+1);//创建游戏场景,并捕获选关信息
+            play->show();//显示游戏场景
+
+12-创建翻金币的场景
+创建新的c++class,名称为play_scene，基类选qmainwindow
+在chooselevelscene.h中添加对应头文件并在public下添加    play_scene * play = NULL;
+
+因为创建时要传入关卡参数，所以要改对应构造函数
+
+在playscene.h中注释掉explicit play_scene(QWidget *parent = nullptr);写一个             play_scene(int level_num);
+    int level_index;//内部成员属性记录所选关卡
+在playscene.cpp中注释掉原构造函数，写一个
+play_scene::play_scene(int level_num)
+{
+    QString str = QString("进入了第%1关").arg(level_num);
+    qDebug()<<str;
+    this->level_index=level_num;、
+    //初始化游戏场景
+    //设置固定大小
+    this->setFixedSize(320,588);
+    //设置图标
+    this->setWindowIcon(QPixmap(":/Coin0001.png"));
+    //设置标题
+    this->setWindowTitle("翻金币场景");
+    //直接用关卡选择界面中的
+    QMenuBar * bar=menuBar();
+    setMenuBar(bar);
+    QMenu * start_menu=bar->addMenu("开始");
+    QAction * quit_action=start_menu->addAction("退出");
+    connect(quit_action,&QAction::triggered,[=](){
+        this->close();
+    });
+}
+//先在头文件中重写绘图事件
+void play_scene::paintEvent(QPaintEvent *)
+{//直接用关卡选择界面中的
+    QPainter painter(this);
+    QPixmap pix;
+    pix.load(":/PlayLevelSceneBg.png");
+    painter.drawPixmap(0,0,this->width(),this->height(),pix);
+    pix.load(":/Title.png");
+    pix=pix.scaled(pix.width()*0.5,pix.height()*0.5);
+    painter.drawPixmap(10,30,pix.width(),pix.height(),pix);
+}
+
+13-游戏场景中返回按钮的创建
+在游戏场景头文件的signal下
+      void play_scene_back();//名称其实可以重复
+在游戏场景构造函数play_scene::play_scene(int level_num)中继续写
+    //返回按钮--直接从chooselevelscene中拿
+    my_pushbutton * back_btn =new my_pushbutton(":/BackButton.png",":/BackButtonSelected.png");
+    back_btn->setParent(this);
+    back_btn->move(this->width()-back_btn->width(),this->height()-back_btn->height());
+    connect(back_btn,&my_pushbutton::clicked,[=](){
+        QTimer ::singleShot(500,this,[=](){
+            emit this->play_scene_back();
+        });
+    });
+在chooselevelscene.cpp中
+接着play->show();//显示游戏场景 写
+            //因为是在lambda里面创建的play窗口，所以要在同一个lambda里监听
+            connect(play,&play_scene::play_scene_back,[=](){
+                this->show();
+                delete play;
+                play=NULL;
+            });
+
+14-显示当前是第几关
+在playscene.cpp的构造函数中接着写
+    QLabel *label = new QLabel;
+    label->setParent(this);
+    QFont font;//字体
+    font.setFamily("华文新魏");
+    font.setPointSize(15);
+    QString str1= QString("Level:%1").arg(this->level_index);
+    label->setFont(font);//将字体设置到标签控件中
+    label->setText(str1);
+    label->setGeometry(30,this->height()-50,120,50);//相当于同时设定label->setFixedSize(120,50)和label->move(30,this->height()-50)
+
+15-创建金币背景图片
+在playscene.cpp中构造函数下接着写
+    //显示金币背景图片
+    for(int i=0;i<4;i++)
+    {
+        for(int j=4;j<4;j++)
+        {
+            //绘制背景图片
+            QLabel * label = new QLabel;
+            label->setGeometry(0,0,50,50);
+            label->setPixmap(QPixmap(":/BoardNode.png"));
+            label->setParent(this);
+            label->move(57+i*50,200+j*50);
+        }
+    }
+
+16-创建金币类
+创建新c++class,名称为my_coin,基类为qwidget,在其头文件中把#include <Qwidget>改成#include <QPushButton>，并把explicit my_pushbutton(QWidget *parent = nullptr);注释掉，把class my_pushbutton : public Qwidget改成class my_pushbutton : public QPushButton,在public下另写
+    my_coin(QString btn_img);//参数代表传入的是金币路径还是银币路径
+在mycoin.cpp中
+my_coin::my_coin(QString btn_img)
+{
+    QPixmap pix;
+    bool ret=pix.load(btn_img);
+    if(!ret)
+    {
+        QString str= QString("图片%1加载失败").arg(btn_img);
+        qDebug()<<str;
+        return;
+    }
+    this->setFixedSize(pix.width(),pix.height());
+    this->setStyleSheet("QPushButton{border:0px;}");
+    this->setIcon(pix);
+    this->setIconSize(QSize(pix.width(),pix.height()));
+}
+在第15步的循环中接着写
+            //创建金币
+            my_coin * coin = new my_coin(":/Coin0001.png");
+            coin->setParent(this);
+            coin->move(59+i*50,204+j*50);
+
+17-配置每个关卡中的默认设置
+先引入dataconfig.h和.cpp文件
+在gamescene头文件public中添加int game_array[4][4];//二维数组，维护每个关卡的具体数据
+gamescene.cpp中显示背景图片之前
+    //初始化每个关卡的二维数组
+    dataConfig config;
+    for(int i=0;i<4;i++)
+    {
+        for(int j=0;j<4;j++)
+        {
+            this->game_array[i][j] = config.mData[this->level_index][i][j];
+            //QMap<int, QVector< QVector<int> > >mData;
+            //mData的第[this->level_index]个参数对应第几关
+            //mData[this->level_index]是一个二维容器，赋值操作把存储值取到game_array中
+        }
+    }
+再把创建金币的步骤修正为
+            //创建金币
+            QString str;
+            if(this->game_array[i][j]==1)
+            {
+                //显示金币
+                str=":/Coin0001.png";
+            }
+            else
+            {
+                str=":/Coin0008.png";
+            }
+            my_coin * coin = new my_coin(str);
+            coin->setParent(this);
+            coin->move(59+i*50,204+j*50);
+        }
+
+18-金币翻转特效的实现
+在mycoin.h中public下添加
+    //金币属性
+    int pos_x;//x坐标位置
+    int pox_y;//y坐标位置
+    bool flag;//正反标示
+    void change_flag();//改变标志的方法
+    QTimer *timer1;//正面翻反面的定时器
+    QTimer *timer2;//反面翻正面的定时器    
+    int min=1;
+    int max=8;
+在mycoin.cpp中构造函数内添加
+    //初始化定时器对象
+    timer1 = new QTimer(this);
+    timer2 = new QTimer(this);
+    //监听正面翻反面的信号，并且翻转金币
+    connect(timer1,&QTimer::timeout,[=](){
+        QPixmap pix;
+        QString str = QString(":/Coin000%1.png").arg(this->min++);//从min=1开始，每次都+1
+        pix.load(str);
+        this->setFixedSize(pix.width(),pix.height());
+        this->setStyleSheet("QPushButton{border:0px;}");
+        this->setIcon(pix);
+        this->setIconSize(QSize(pix.width(),pix.height()));
+        //判断是否翻完了，若翻完，把min重置
+        if(this->min>this->max)
+        {
+            this->min=1;
+            timer1->stop();
+        }
+    });
+    //监听反面翻正面的信号，并且翻转金币
+    connect(timer2,&QTimer::timeout,[=](){
+        QPixmap pix;
+        QString str = QString(":/Coin000%1.png").arg(this->max--);
+        pix.load(str);
+        this->setFixedSize(pix.width(),pix.height());
+        this->setStyleSheet("QPushButton{border:0px;}");
+        this->setIcon(pix);
+        this->setIconSize(QSize(pix.width(),pix.height()));
+        if(this->max<this->min)
+        {
+            this->max=8;
+            timer2->stop();
+        }
+    });
+外面写
+void my_coin::change_flag()
+{
+    //如果是正面 翻成反面
+    if(this->flag)
+    {
+        //开始正面翻反面的定时器
+        timer1->start(30);//此步相当于发送了定时器开始的信号，被上面&QTimer::timeout接收
+        this->flag=false;
+    }
+    else//反面翻正面
+    {
+        timer2->start(30);
+        this->flag=true;
+    }
+}
+在playscene.cpp中接着创建金币步骤写
+            //给金币的属性赋值
+            coin->pos_x=i;
+            coin->pox_y=j;
+            coin->flag=this->game_array[i][j];//1正面（金币）  0反面（银币）
+            //点击金币，进行翻转
+            connect(coin,&my_coin::clicked,[=](){
+                coin->change_flag();
+                this->game_array[i][j]=this->game_array[i][j]==0?1:0;
+            });
+注意这块都是在创建金币的循环内写的
+
+19-防止没翻完时就点击
+在mycoin.h的public下添加
+    //执行动画的标志
+    bool is_animation=false;
+    void mousePressEvent(QMouseEvent *e);
+在if(this->flag)和else里均添加is_animation=true;
+在if(this->min>this->max)和if(this->max<this->min)里均添加is_animation=false;
+在mycoin.cpp中外面
+void my_coin::mousePressEvent(QMouseEvent *e)
+{
+    if(this->is_animation)//如果在做动画，就想拦截点击的信号
+    {
+        return;
+    }
+    else //如果没在做动画，就不拦截
+
+    {
+        QPushButton::mousePressEvent(e);
+    }
+}
+也可以不写上述函数，直接在connect(coin,&my_coin::clicked,[=](){里加一个if(coin->is_animation==false)再执行coin->change_flag();操作
+这两种方法都可以在一个币子没翻完时就翻另一个）
+
+20-实现周围金币的翻转
+在playscene头文件中加一个my_coin * coin_btn[4][4];保存创建的按钮
+在playscene.cpp中的 给金币的属性赋值  部分里加上
+	coin_btn[i][j]=coin;//将金币放入到金币的二维数组里，便于后期的维护
+在connect(coin,&my_coin::clicked,[=](){内继续写
+                //翻转周围金币(延时翻转）
+                QTimer::singleShot(300,this,[=](){
+                    if(coin->pos_x+1<=3)//右侧金币翻转条件（注意posx是从0开始的，所以等号右侧为3）
+                    {
+                        coin_btn[coin->pos_x+1][coin->pox_y]->change_flag();
+                        this->game_array[coin->pos_x+1][coin->pox_y]=this->game_array[coin->pos_x+1][coin->pox_y]==0?1:0;
+                    }
+                    if(coin->pos_x-1>=0)//左侧金币翻转条件
+                    {
+                        coin_btn[coin->pos_x-1][coin->pox_y]->change_flag();
+                        this->game_array[coin->pos_x-1][coin->pox_y]=this->game_array[coin->pos_x-1][coin->pox_y]==0?1:0;
+                    }
+                    if(coin->pox_y+1<=3)//下侧金币翻转条件
+                    {
+                        coin_btn[coin->pos_x][coin->pox_y+1]->change_flag();
+                        this->game_array[coin->pos_x][coin->pox_y+1]=this->game_array[coin->pos_x][coin->pox_y+1]==0?1:0;
+                    }
+                    if(coin->pox_y-1>=0)//上侧金币翻转条件
+                    {
+                        coin_btn[coin->pos_x][coin->pox_y-1]->change_flag();
+                        this->game_array[coin->pos_x][coin->pox_y-1]=this->game_array[coin->pos_x][coin->pox_y-1]==0?1:0;
+                    }
+                });
+            });
+
+21-判断游戏结束
+在playscene.h中添加    bool is_win;
+在mycoin.h中添加bool is_win=false;//一定要给默认值
+在上面QTimer::singleShot(300,this,[=](){内继续写
+                    //等到所有金币都翻完后判断是否胜利
+                    this->is_win=true;
+                    for(int i=0;i<4;i++)
+                        for(int j=0;j<4;j++)
+                        {
+                            if(coin_btn[i][j]->flag==false)
+                            {
+                                this->is_win=false;
+                                i=5;//退出两层循环
+                                break;
+                            }
+                        }
+                    if(this->is_win==true)
+                    {
+                        qDebug()<<"胜利";
+                        //将所有按钮的胜利标志改为true，如果再点击按钮，就return（不反应）
+                        for(int i=0;i<4;i++)
+                            for(int j=0;j<4;j++)
+                            {
+                                coin_btn[i][j]->is_win=true;
+                            }
+                    } 
+为什么不在QTimer::singleShot外写判断条件，因为点击的同时就会进行一次检测，而把四周的金币翻转过来是在qtimer延时300ms后，等到翻转完，检测早已完成，所以检测不到
+
+再把mycoin中的void my_coin::mousePressEvent(QMouseEvent *e)中的if(this->is_animation)改成
+if(this->is_animation || this->is_win)//如果在做动画或者按钮的iswin值为true，就想拦截点击的信号
+在myCoin的构造函数中加上这句：this->setFocusPolicy(Qt::NoFocus);这样按下空格就不会翻转了。
+
+22-胜利图片实现
+在playscene的构造函数的//显示金币背景图片之前写
+    //胜利图片显示
+    QLabel * win_label = new QLabel;
+    QPixmap tmp_pix;
+    tmp_pix.load(":/LevelCompletedDialogBg.png");
+    win_label->setGeometry(0,0,tmp_pix.width(),tmp_pix.height());
+    win_label->setPixmap(tmp_pix);//把图片填到label里
+    win_label->setParent(this);
+    win_label->move((this->width()-tmp_pix.width())*0.5,-tmp_pix.height());//负号就是显示在界面上面，看不到
+    //只有胜利时图片才从上面下来
+再在if(this->is_win==true)里面写
+                        //将胜利图片砸下来
+                        QPropertyAnimation * animation = new QPropertyAnimation(win_label,"geometry");
+                        //设置时间间隔
+                        animation->setDuration(1000);
+                        //设置开始位置
+                        animation->setStartValue(QRect(win_label->x(),win_label->y(),win_label->width(),win_label->height()));
+                        //设置结束位置
+                        animation->setEndValue(QRect(win_label->x(),win_label->y()+180,win_label->width(),win_label->height()));
+                        //设置缓和曲线
+                        animation->setEasingCurve(QEasingCurve::OutBounce);
+                        //执行动画
+                        animation->start();
+
+23-解决点击完一个金币后可以立刻点击另一金币导致无法胜利的bug
+在connect(coin,&my_coin::clicked,[=](){下最开始写
+                //点击按钮，将所有的按钮都禁用
+                for(int i=0;i<4;i++)
+                    for(int j=0;j<4;j++)
+                    {
+                        this->coin_btn[i][j]->is_win=true;
+                    }//因为出现胜利图片之前还会有一次判断胜利，不用担心被误判胜利
+再在判断胜利//等到所有金币都翻完后判断是否胜利 之前写
+                    for(int i=0;i<4;i++)
+                        for(int j=0;j<4;j++)
+                        {
+                            this->coin_btn[i][j]->is_win=false;
+                        }
+		//注意区分this(play_scene)和coin_btn[i][j]里的is_win不一样，这里都是改变coin_btn的iswin，目的是对应mycoin里的事件拦截器,不影响对this->iswin的检测
+
+或者直接把qtimer里的延时调小，小到不足以再点另一个按钮
+
+24-音效添加-主场景开始按钮
+添加qsound模块：在game1.pro中，把第一行的QT+= core gui改成QT+= core gui multimedia
+在mainscene中添加#include <QSound>
+mainScene::mainScene(QWidget *parent)里面的//写开始按钮 之前写
+    //准备开始按钮的音效
+    QSound * start_sound = new QSound(":/CoinFlip_res_TapButtonSound.wav",this);
+再在connect(start_btn,&my_pushbutton::clicked,[=](){下最前面添加
+        //播放开始音效
+        start_sound->play();
+
+25-音效添加-选择关卡和返回按钮
+在chooselevelscene中的//创建返回按钮 前添加
+    //选择关卡按钮音效
+    QSound * choose_sound = new QSound(":/CoinFlip_res_TapButtonSound.wav",this);
+    //返回按钮音效
+    QSound * back_sound= new QSound(":/CoinFlip_res_BackButtonSound.wav",this);
+再在connect(menu_btn,&my_pushbutton::clicked,[=](){下最前面添加
+        //播放选择关卡音效
+        choose_sound->play();
+在connect(back_btn,&my_pushbutton::clicked,[=](){下最前面添加
+        //播放返回按钮音效
+        back_sound->play();
+
+
+26-音效添加-翻金币和胜利的音效
+在playscene中//创建返回按钮  之前添加
+    //返回按钮音效
+    QSound * back_sound= new QSound(":/CoinFlip_res_BackButtonSound.wav",this);
+    //翻金币音效
+    QSound * flip_sound = new QSound(":/CoinFlip_res_ConFlipSound.wav",this);
+    //胜利按钮音效
+    QSound * win_sound = new QSound(":/CoinFlip_res_LevelWinSound.wav",this);
+在connect(back_btn,&my_pushbutton::clicked,[=](){下最前面添加
+        //播放返回按钮音效
+        back_sound->play();
+在connect(coin,&my_coin::clicked,[=](){下最前面添加
+                //播放翻金币音效
+                flip_sound->play();
+在if(this->is_win==true)下最前面添加
+                        //添加胜利音效
+                        win_sound->play();
+
+其他音效操作：setloops(n)循环播放n次，若n为-1，则无限次循环
+
+27-修复bug-进入每个场景时窗口位置改变
+在mainscene中connect(start_btn,&my_pushbutton::clicked,[=]()中的QTimer::singleShot(500,this,[=](){下添加
+            //设置选择关卡场景的位置
+            choose_scene->setGeometry(this->geometry());
+在connect(choose_scene,&choose_level_scene::choose_scene_back,this,[=](){下添加
+        this->setGeometry(choose_scene->geometry());
+在chooselevelscene中的connect(menu_btn,&my_pushbutton::clicked,[=](){中的play->show();前面添加
+                //设置游戏场景的初始位置
+                play->setGeometry(this->geometry());
+在connect(play,&play_scene::play_scene_back,[=](){下添加
+                    this->setGeometry(play->geometry());
+
+28-项目打包
+点击左下角那个电脑图标，将构建改为release，再点击锤子编译，再运行一下看看有没有问题。没问题后再左面找一个.cpp点击在explore中显示，往上翻一页，找到build-game1-Desktop_Qt_5_14_2_MinGW_32_bit-Release，点击release文件夹，把5.14.2-mingw73_32-bin中的所有.dll文件复制到release文件夹中，再把5.14.2-mingw73_32-plugins文件夹复制到release文件夹中，点击.exe文件，理论上可正常运行（这一步可不执行）
+d盘中新建一文件夹，把game1.exe复制进去（同一目录下不能有相同名称的文件或文件夹），点击菜单栏上的4蓝色方块（开始菜单），点所有应用，找到qt5.14.2中的qt5.14.2(mingw 7.3.0 32-bit),输入 cd /d D:\release  回车（D:\release是.exe文件所在文件夹路径），再输入windeployqt game1.exe，回车，即可打包成功
+关于最后装成setup文件：参见https://blog.csdn.net/hanhui22/article/details/109594359?spm=1001.2101.3001.6650.1&utm_medium=distribute.pc_relevant.none-task-blog-2%7Edefault%7ECTRLIST%7ERate-1-109594359-blog-105178781.235%5Ev36%5Epc_relevant_default_base3&depth_1-utm_source=distribute.pc_relevant.none-task-blog-2%7Edefault%7ECTRLIST%7ERate-1-109594359-blog-105178781.235%5Ev36%5Epc_relevant_default_base3&utm_relevant_index=2
+
