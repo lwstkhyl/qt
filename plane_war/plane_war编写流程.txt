@@ -1,0 +1,462 @@
+新建一个plane_war，基类为qwidget,类名为main_scene
+1、创建新的头文件config.h，记录程序中所有的配置数据，方便后期修改
+#define game_width 512
+#define game_height 768
+#define game_title "飞机大战 v1.0"
+
+2、初始化场景：先把资源添加进来，再在main_scene.h的public下添加
+void init_scene(); //初始化场景
+此时左键init_scene选中该函数，按alt+回车，选择在main_scene中添加定义，在main_scene中：
+void main_scene::init_scene()
+{
+    //设置窗口固定尺寸
+    setFixedSize(game_width,game_height);
+    //设置标题
+    setWindowTitle(game_title);
+    //加载图标
+    setWindowIcon(QIcon(":res/app.ico"));
+}
+在main_scene::main_scene(QWidget *parent)内添加：
+init_scene();//调用初始化场景函数
+
+3、实现地图的滚动：两张相同的给定的图片上下可以无缝衔接来组成完整的场景，因此可以使用两张图片上下放置，往下平移，当第二张图片平移到窗口时再把第一张图片移到它上面继续平移
+创建地图文件和类：右键plane_war->addnew->c++class,名称为map
+map.h:
+class map
+{
+public:
+    map();//构造函数
+    void map_position();//地图滚动坐标计算
+    QPixmap m_map1;
+    QPixmap m_map2;//创建两个图片对象
+    int m_map1_pos_y,m_map2_pos_y;//地图y轴坐标
+    int m_scroll_speed;//地图滚动速度
+};
+
+map.cpp:
+map::map()
+{
+    m_map1.load(map_path);
+    m_map2.load(map_path);//加载地图对象
+    m_map1_pos_y=-game_height;
+    m_map2_pos_y=0;//初始化y轴坐标
+    m_scroll_speed=map_scroll_speed;//设置地图滚动速度
+}
+void map::map_position()
+{
+    m_map1_pos_y += m_scroll_speed;//第一张地图滚动位置
+    if(m_map1_pos_y>=0)//如果图片滚动到了边界
+    {
+        m_map1_pos_y=-game_height;//就重置
+    }
+    m_map2_pos_y += m_scroll_speed;//第一张地图滚动位置
+    if(m_map2_pos_y>=game_height)
+    {
+        m_map2_pos_y=0;
+    }
+}
+
+main_scene.h的public下:
+    QTimer m_timer;//设置图片滚动的定时器
+    map m_map;//地图对象
+    void play_game();//启动游戏
+    void update_position();//更新游戏中所有元素的坐标
+    void paintEvent(QPaintEvent *);
+
+main_scene.cpp:
+void main_scene::init_scene()
+{
+    //设置窗口固定尺寸
+    setFixedSize(game_width,game_height);
+    //设置标题
+    setWindowTitle(game_title);
+    //加载图标
+    setWindowIcon(QIcon(":res/app.ico"));
+}
+void main_scene::play_game()
+{
+    m_timer.start(game_rate);//启动定时器
+    connect(&m_timer,&QTimer::timeout,[=](){//监听定时器发送的信号
+        update_position();//更新元素坐标
+        update();//调用paintevent来更新图片
+    });
+}
+void main_scene::update_position()
+{
+    m_map.map_position();//更新地图坐标
+}
+void main_scene::paintEvent(QPaintEvent *)
+{
+    QPainter painter(this);
+    painter.drawPixmap(0,m_map.m_map1_pos_y,m_map.m_map1);
+    painter.drawPixmap(0,m_map.m_map2_pos_y,m_map.m_map2);
+}
+最后再在main_scene::main_scene(QWidget *parent)中添加
+play_game();//启动游戏
+
+总结：创建地图类，类中有地图坐标，地图图片对象，滚动速度以及改变坐标的函数，在构造函数中加载图片并初始化坐标；在mainscene中创建定时器对象，地图对象，更新坐标函数以及启动游戏函数，更新坐标函数调用的是地图对象中改变坐标的函数，启动游戏函数中利用了定时器对象来进行坐标更新以及图片显示更新（paintevent事件），如果不用计时器反复调用paintevent事件，就只在开始运行时执行一次paintevent
+
+4、英雄飞机（玩家操控的）
+该类需要一个发射子弹的函数，飞机位置改变的函数，飞机x,y轴坐标，飞机图片对象以及边框（碰撞检测）
+新建c++class,名为hero_plane
+hero_plane.h:
+class hero_plane
+{
+public:
+    hero_plane();
+    void shoot();//子弹发射
+    void set_position(int x,int y);//设置飞机位置
+public:
+    QPixmap m_plane;//飞机图片对象
+    int m_x,m_y;//飞机坐标
+    QRect m_rect;//飞机矩形边框
+};
+
+hero_plane.cpp:
+hero_plane::hero_plane()
+{
+    m_plane.load(hero_plane_path);//初始化加载飞机图片资源
+    m_x=(game_width-m_plane.width())/2;
+    m_y=game_height-m_plane.height();//初始化坐标
+    m_rect.setWidth(m_plane.width());
+    m_rect.setHeight(m_plane.height());//设置矩形边框宽高
+    m_rect.moveTo(m_x,m_y);//设置矩形边框位置
+}
+void hero_plane::shoot()
+{
+    //等到子弹类做完才可以实现
+}
+void hero_plane::set_position(int x, int y)
+{
+    m_x=x;
+    m_y=y;
+    m_rect.moveTo(x,y);
+}
+
+main_scene.h的public下添加:
+    hero_plane m_hero;//飞机对象
+
+main_scene.cpp中的paintevent下添加:
+    painter.drawPixmap(m_hero.m_x,m_hero.m_y,m_hero.m_plane);
+
+5、飞机移动：用鼠标移动事件来实现
+main_scene.h的public下添加:
+    void mouseMoveEvent(QMouseEvent *event);
+
+main_scene.cpp中添加:
+void main_scene::mouseMoveEvent(QMouseEvent *event)
+{
+    //int x=event->x();
+    //int y=event->y();//这样写会让飞机在鼠标的右下角
+    int x=event->x()-m_hero.m_rect.width()/2;
+    int y=event->y()-m_hero.m_rect.height()/2;
+    //边界检测：防止飞机出界面
+    if(x<=0)
+        x=0;
+    if(x>=game_width-m_hero.m_rect.width())
+        x=game_width-m_hero.m_rect.width();
+    if(y<=0)
+        y=0;
+    if(y>=game_height-m_hero.m_rect.height())
+        y=game_height-m_hero.m_rect.height();
+    m_hero.set_position(x,y);
+}
+
+5、子弹制作
+新建c++class,名为bullet,包含更新子弹坐标的函数，子弹图片对象，子弹坐标，移动速度，矩形边框以及是否闲置的bool值--想象有一个”弹匣“数组，子弹从里面一发一发打出去，飞出去就是非闲置，等到其飞出界面，就回到弹匣，变为闲置状态，这样做是避免重复创建对象导致内存占用过多
+bullet.h:
+class bullet
+{
+public:
+    bullet();
+    void update_position();//更新坐标
+public:
+    QPixmap m_bullet;//子弹图片对象
+    int m_x,m_y;//子弹坐标
+    int m_speed;//子弹速度
+    bool m_free;//是否闲置
+    QRect m_rect;//矩形边框
+};
+
+bullet.cpp:
+bullet::bullet()
+{
+    m_bullet.load(bullet_path);//加载子弹资源
+    m_x=game_width/2-m_bullet.width()/2;
+    m_y=game_height;//初始位置可以设置成界面中间往下看不见的位置
+    m_free=true;//开始为空闲状态
+    m_speed=bullet_speed;
+    m_rect.setWidth(m_bullet.width());
+    m_rect.setHeight(m_bullet.height());
+    m_rect.moveTo(m_x,m_y);
+}
+void bullet::update_position()
+{
+    if(m_free==true)//空闲状态下不需要计算坐标
+        return;
+    m_y-=m_speed;
+    m_rect.moveTo(m_x,m_y);//非空闲就向上移动  
+    if(m_y<=-m_rect.height())//如果向上移动出界面
+        m_free=true;//就改为空闲状态
+}
+
+以下为测试代码，先创建出一个子弹对象
+main_scene.h的public下添加:
+    bullet temp_bullet;
+
+main_scene.cpp中update_position()内添加:
+    temp_bullet.m_free=false;//改变子弹空闲状态
+    temp_bullet.update_position();//更新子弹坐标
+
+main_scene.cpp中paintEvent内添加:
+    painter.drawPixmap(temp_bullet.m_x,temp_bullet.m_y,temp_bullet.m_bullet);
+
+6、子弹的发射：在hero_plane中新增一个弹匣数组以及发送间隔记录，实现shoot函数并在主场景中控制子弹发射
+hero_plane.h的public下新增:
+    bullet m_bullets[bullet_num];//弹匣
+    int m_recorder=0;//发射间隔记录
+
+hero_plane.cpp下新增:
+void hero_plane::shoot()//注意shoot函数中负责改状态和初始化坐标，不负责子弹的移动
+{    
+    m_recorder++;//累加时间间隔记录变量
+    if(m_recorder<bullet_interval)
+        return;//如果没达到时间间隔，就不发射子弹
+    m_recorder=0;//如果达到就重置记录变量并发射
+    for(int i=0;i<bullet_num;i++)//遍历弹匣数组来找一颗空闲的子弹进行发射
+    {
+        if(m_bullets[i].m_free==true)//如果空闲就发射子弹
+        {
+            m_bullets[i].m_free=false;//把它变成不空闲
+            //m_bullets[i].m_x=m_x;
+            //m_bullets[i].m_y=m_y;//设置子弹坐标同飞机坐标，因为是从飞机开始发射
+            m_bullets[i].m_x=m_x+m_rect.width()/2-10;//经过微调后的子弹坐标，使子弹从飞机的中间坐标发射
+            m_bullets[i].m_y=m_y-25;
+            break;//发射完就退出循环
+        }
+    }
+}
+
+main_scene.cpp中update_position()内添加:
+    m_hero.shoot();//发射子弹（这行也可以加到play_game函数中的connect中）
+    for(int i=0;i<bullet_num;i++)//更新所有非空闲子弹的坐标，从而使子弹移动
+    {
+        if(m_hero.m_bullets[i].m_free==false)
+        {
+            m_hero.m_bullets[i].update_position();
+        }
+    }
+
+main_scene.cpp中paintEvent内添加:
+    for(int i=0;i<bullet_num;i++)//画出所有非空闲子弹
+    {
+        if(m_hero.m_bullets[i].m_free==false)
+        {
+           painter.drawPixmap(m_hero.m_bullets[i].m_x,m_hero.m_bullets[i].m_y,m_hero.m_bullets[i].m_bullet);
+        }
+    }
+
+7、敌机出现：创建c++class名为enemy_plane,包含更新坐标的函数，资源对象，矩形边框，位置，状态是否空闲以及速度,和子弹类差不多
+enemy_plane.h:
+class enemy_plane
+{
+public:
+    enemy_plane();
+    void update_position();//更新坐标
+public:
+    QPixmap m_enemy;
+    int m_x;
+    int m_y;
+    QRect m_rect;
+    bool m_free;
+    int m_speed;
+};
+
+enemy_plane.cpp:
+enemy_plane::enemy_plane()
+{
+    m_enemy.load(enemy_path);//敌机资源加载
+    m_x=0;
+    m_y=0;//因为之后还要随机赋值，所以位置初始值无所谓
+    m_free=true;
+    m_speed=enemy_speed;
+    m_rect.setWidth(m_enemy.width());
+    m_rect.setHeight(m_enemy.height());
+    m_rect.moveTo(m_x,m_y);
+}
+void enemy_plane::update_position()
+{
+    if(m_free==true)
+        return;//空闲状态不计算坐标
+    m_y+=m_speed;//从上往下飞
+    m_rect.moveTo(m_x,m_y);
+    if(m_y>=game_height)//如果出界
+        m_free=true;//就设为空闲        
+}
+
+在main_scene.h的public下添加：（就相当于子弹类在hero_plane.h中的声明和初始化）
+    void enemy_to_scene();//敌机出场的函数
+    enemy_plane m_enemys[enemy_num];//敌机的数组
+    int m_recorder;//敌机出场间隔
+
+main_scene.cpp中的void main_scene::init_scene()下添加：
+    m_recorder=0;//初始化敌机出场的间隔时间
+    srand((unsigned int)time(NULL));//设置随机数种子
+
+main_scene.cpp下添加：（这部分就相当于hero_plane的shoot函数，只不过是在main_scene中写的）
+void main_scene::enemy_to_scene()
+{
+    m_recorder++;
+    if(m_recorder<enemy_interval)
+        return;//没达到出场间隔就不出场
+    m_recorder=0;//重置为0
+    for(int i=0;i<enemy_num;i++)
+    {
+        if(m_enemys[i].m_free==true)//如果空闲就出场
+        {
+            m_enemys[i].m_free=false;
+            m_enemys[i].m_x=rand()%(game_width-m_enemys[i].m_rect.width());//设置随机出场，最后一个括号内为随机数生成的范围
+            m_enemys[i].m_y=-m_enemys[i].m_rect.height();
+            break;
+        }
+    }
+}
+
+main_scene.cpp中的void main_scene::play_game()的connect中添加：
+        enemy_to_scene();
+
+main_scene.cpp中的void main_scene::update_position()下添加：（同子弹类）
+    for(int i=0;i<enemy_num;i++)
+    {
+        if(m_enemys[i].m_free==false)
+        {
+            m_enemys[i].update_position();
+        }
+    }
+
+main_scene.cpp中的paintEvent下添加：（同子弹类）
+    for(int i=0;i<enemy_num;i++)
+    {
+        if(m_enemys[i].m_free==false)
+        {
+            painter.drawPixmap(m_enemys[i].m_x,m_enemys[i].m_y,m_enemys[i].m_enemy);
+        }
+    }
+
+8、碰撞检测
+main_scene.h的public下添加：
+    void collision_detection();//碰撞检测函数
+
+main_scene.cpp下添加：
+void main_scene::collision_detection()
+{
+    //先做敌机和子弹的碰撞检测
+    for(int i=0;i<enemy_num;i++)//遍历所有非空闲的敌机
+    {
+        if(m_enemys[i].m_free==true)//如果空闲就找下一架飞机
+            continue;
+        for(int j=0;j<bullet_num;j++)//遍历所有非空闲的子弹
+        {
+            if(m_hero.m_bullets[j].m_free==true)//如果空闲就找下一个子弹
+                continue;
+            //如果程序到这就说明第i架飞机和第j个子弹都非空闲，进行检测
+            if(m_enemys[i].m_rect.intersects(m_hero.m_bullets[j].m_rect))//intersects函数两边的矩形框碰撞就返回true
+            {
+                m_enemys[i].m_free=true;
+                m_hero.m_bullets[j].m_free=true;//碰撞后都消失，即变为空闲状态
+            }
+        }
+    }
+}
+
+main_scene.cpp中的void main_scene::play_game()的connect中添加：
+        collision_detection();//碰撞检测
+
+9、爆炸效果的实现：创建c++class，名为bomb，爆炸效果由7张图组成
+bomb.h:
+class bomb
+{
+public:
+    bomb();
+    void update_info();//更新信息（播放图片下标、播放间隔）
+    QVector<QPixmap> m_pix_arr;//放爆炸图片的数组
+    int m_x,m_y;//爆炸位置
+    bool m_free;//爆炸状态
+    int m_recorder;//距离上次切换图片的时间间隔
+    int m_index;//当前加载的图片下标
+};
+
+bomb.cpp:
+bomb::bomb()
+{
+    //将爆炸需要的7张图放进一个数组中
+    for(int i=1;i<=bomb_max;i++)
+    {
+        //因为config中bombpath是有%1占位的，现需要把占位用i替代，形成一个完整有效的路径
+        QString str=QString(bomb_path).arg(i);//完整路径是":/res/bomb-2.png"的形式
+        m_pix_arr.push_back(QPixmap(str));
+    }
+    m_x=0;
+    m_y=0;
+    m_free=true;
+    m_index=0;
+    m_recorder=0;
+}
+void bomb::update_info()
+{
+    if(m_free=0)//空闲状态不进行爆炸
+        return;
+    m_recorder++;
+    if(m_recorder<bomb_interval)//爆炸切换图片时间小于间隔，不进行切换图片
+        return;
+    m_recorder=0;//重置时间
+    m_index++;
+    if(m_index>bomb_max-1)//爆炸图片播放完毕
+    {
+        m_index=0;//重置下标，准备下一次爆炸
+        m_free=true;//变为空闲状态
+    }
+}
+
+main_scene.h中public下添加:
+    bomb m_bombs[bomb_num];//爆炸的数组
+
+main_scene.cpp中碰撞检测函数中if(m_enemys[i].m_rect.intersects(m_hero.m_bullets[j].m_rect))下添加:
+                for(int k=0;k<bomb_num;k++)//播放爆炸效果
+                {
+                    if(m_bombs[k].m_free==true)//找一个空闲的爆炸
+                    {
+                        m_bombs[k].m_free=false;//更新爆炸状态
+                        m_bombs[k].m_x=m_enemys[i].m_x;
+                        m_bombs[k].m_y=m_enemys[i].m_y;//更新爆炸坐标
+                        break;//不break：会在该位置上把爆炸数组中所有bomb都设为非空闲
+                    }
+                }
+
+main_scene.cpp中update_position下添加：
+    for(int i=0;i<bomb_num;i++)
+    {
+        if(m_bombs[i].m_free==false)
+        {
+            m_bombs[i].update_info();
+        }
+    }
+
+main_scene.cpp中paintEvent下添加：
+    for(int i=0;i<bomb_num;i++)
+    {
+        if(m_bombs[i].m_free==false)
+        {
+            painter.drawPixmap(m_bombs[i].m_x,m_bombs[i].m_y,
+                               m_bombs[i].m_pix_arr[m_bombs[i].m_index]);
+        }
+    }
+
+10、音效添加：
+在plane_war.pro中添加QT       += core gui multimedia
+
+在main_scene.cpp的play_game下定时器外添加
+    QSound::play(sound_backgroud_path);//播放背景音乐
+
+在main_scene.cpp的碰撞检测函数内if(m_bombs[k].m_free==true)（找到空闲的bomb对象进行爆炸）内添加
+                        QSound::play(sound_bomb_path);//播放爆炸音效
