@@ -97,57 +97,6 @@ choose_level_scene::choose_level_scene(QWidget *parent) : QMainWindow(parent)
         });
     }
 }
-//    QVector<my_pushbutton*> btn;
-//    for(int i=0;i<20;i++)
-//    {
-//        my_pushbutton * menu_btn= new my_pushbutton(":/LevelIcon.png");
-//        menu_btn->setParent(this);
-//        btn.push_back(menu_btn);
-//        menu_btn->pos=i;
-//        connect(menu_btn,&my_pushbutton::enter_menu_btn,[=](){
-//            QPixmap pix;
-//            bool ret= pix.load(":/Coin0001.png");
-//            if(!ret)
-//            {
-//                qDebug()<<"图片加载失败";
-//                return;
-//            }
-//            menu_btn->setIcon(pix);
-//        });
-//        connect(menu_btn,&my_pushbutton::leave_menu_btn,[=](){
-//            QPixmap pix;
-//            bool ret= pix.load(":/LevelIcon.png");
-//            if(!ret)
-//            {
-//                qDebug()<<"图片加载失败";
-//                return;
-//            }
-//            menu_btn->setIcon(pix);
-//        });
-//        connect(menu_btn,&my_pushbutton::clicked,[=]()
-//        {
-//            emit menu_btn->kuozhan();
-//        });
-//    }
-//    for(int i=0;i<19;i++)
-//    {
-//    connect(btn[i],&my_pushbutton::kuozhan,[=]()
-//    {
-//        qDebug()<<btn[i]->pos;
-//        int pos_i=btn[i]->pos;
-//        if(pos_i<19)
-//            emit btn[i+1]->kuozhan();
-//    });
-//    }
-//    for(int i=0;i<20;i++)
-//    {
-//        btn[i]->move(25+i%4*70,130+i/4*70);
-//    }
-//    connect(btn[1],&my_pushbutton::kuozhan,this,[=](){
-
-//    });
-//}
-
 void choose_level_scene::paintEvent(QPaintEvent *)
 {
     QPainter painter(this);
