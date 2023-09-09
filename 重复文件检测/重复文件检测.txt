@@ -1,0 +1,72 @@
+1、给定路径，获取该路径下所有的文件路径（使用递归）
+qstringlist就是python中的list，元素为string类型
+QStringList Widget::getfiles(const QString &path)
+{
+    QStringList result;
+    QDir dir(path);//dir存储path目录下的所有文件和文件夹路径
+    QFileInfoList info_list=dir.entryInfoList(QDir::Files|QDir::Dirs|QDir::NoDotAndDotDot);//..表示上一级目录，不需要上一级的路径，这样info_list就只包含path里面的文件路径
+    for(int i=0;i<info_list.count();i++)//循环次数为info_list的元素数
+    {
+        QFileInfo info=info_list.at(i);
+        if(info.isDir())//如果这个路径是一个文件夹，就递归调用getfiles函数来获取里面的文件，再放到结果里面
+        {
+            QString sub_dir=info.absoluteFilePath();//获取文件夹的绝对路径
+            QStringList files=getfiles(sub_dir);
+            result.append(files);
+        }
+        else//如果是一个文件就直接放到结果里面
+        {
+            QString file_name=info.absoluteFilePath();
+            result.append(file_name);
+        }
+    }
+    return result;
+}
+
+2、计算文件的MD5，MD5有区分文件是否相同的作用，不同文件的MD5值不相同，相同文件的MD5值相同
+QByteArray Widget::get_file_md5(const QString &path)
+{
+    QFile file(path);
+    if(file.open(QIODevice::ReadOnly))//如果文件打开成功
+    {
+        QCryptographicHash hash(QCryptographicHash::Md5);
+        while(!file.atEnd())//因为有的文件可能很大，所有要分段读取文件来计算MD5
+        {
+            QByteArray content=file.read(100*1024*1024);//一次读取100M字节的信息
+            hash.addData(content);//把这段文件添加到MD5的计算中
+        }
+        QByteArray md5=hash.result().toHex();//最终计算结果，转成16进制输出
+        file.close();
+        return md5;
+    }
+    return QByteArray();//如果不成功就返回空值
+}
+
+3、qhash：无序的map，都是键值对容器，用qhash检测重复文件
+        QStringList file_list=getfiles("C:\\Users\\17185\\Desktop\\c++\\qt\\qt转应用时添加到exe目录下");
+        for(int i=0;i<file_list.count();i++)
+        {
+            QString file_name=file_list.at(i);
+            QByteArray md5=get_file_md5(file_name);
+            md5_filelist[md5].append(file_name);//md5_filelist[md5]通过key来访问value，得到该MD5对应的qstringlist，如果没有这个MD5就创建一个pair（key为这个MD5）
+        }
+        for(auto beg=md5_filelist.begin();beg!=md5_filelist.end();beg++)//遍历qhash
+        {
+            if(beg.value().count()>1)//如果qstringlist里面的元素数量>1，说明有重复文件
+            {
+                qDebug()<<"file:"<<beg.value();
+            }
+
+4、用文件大小检测重复文件
+        for(int i=0;i<file_list.count();i++)
+        {
+            QFile file(file_list.at(i));
+            qint64 file_size;
+            if (file.open(QIODevice::ReadOnly))
+                file_size=file.size();
+            size_filelist[file_size].append(file_list.at(i));
+        }
+    for(auto beg=size_filelist.begin();beg!=size_filelist.end();beg++)
+        if(beg.value().count()>1)
+            for(int i=0;i<beg.value().count();i++)
+                qDebug()<<"file:"<<beg.value()[i];
