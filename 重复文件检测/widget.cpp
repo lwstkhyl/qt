@@ -15,7 +15,7 @@ Widget::Widget(QWidget *parent)
 {
     ui->setupUi(this);
     connect(ui->open_file_button,&QPushButton::clicked,this,[=](){
-        QString file_path_choose=QFileDialog::getExistingDirectory(this,"打开文件","C:\\Users\\17185\\Desktop\\c++\\qt");
+        QString file_path_choose=QFileDialog::getExistingDirectory(this,"打开文件","C:\\c++\\qt");
         if(file_path_choose.isEmpty()==true)
         {
             QMessageBox::warning(this,"打开文件","选择的文件路径不能为空");
@@ -43,7 +43,7 @@ Widget::Widget(QWidget *parent)
         }
         file_list.clear();//清空file_list
         for(auto beg=size_filelist.begin();beg!=size_filelist.end();beg++)
-            if(beg.value().count()>1)//如果该大小有多个文件，就把它加入file_list中
+            if(beg.value().count()>1)//如果该大小有多个文件，就把它加入file_list中，进行MD5的检测
                 for(int i=0;i<beg.value().count();i++)
                     file_list.append(beg.value().at(i));
         //用MD5检索文件↓
