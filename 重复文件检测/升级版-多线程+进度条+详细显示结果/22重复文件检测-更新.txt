@@ -1,4 +1,4 @@
-想实现功能：显示检测进度的进度条、使用另外一个线程来计算MD5、以及改变显示结果方式--设置两个listwidget，一个显示MD5、另一个显示文件路径，当点击listwidget中的MD5时，另一个listwidget显示对应的重复文件
+想实现功能：显示检测进度的进度条、使用另外一个线程来计算MD5（启动线程的信号-线程执行代码-线程返回结果的信号）、以及改变显示结果方式--设置两个listwidget，一个显示MD5、另一个显示文件路径，当点击listwidget中的MD5时，另一个listwidget显示对应的重复文件
     connect(ui->md5_listWidget,&QListWidget::currentTextChanged,[=](const QString &current_text){//该信号在改变选择的项时触发，以qstring类型传出选择的内容（即MD5）
         ui->file_listWidget->clear();//清空之前MD5的文件路径，以便显示这次的内容
         QStringList files=this->dumplate[current_text.toLocal8Bit()];//将qstring转成qbytearray类型，要不然不能通过键找值
