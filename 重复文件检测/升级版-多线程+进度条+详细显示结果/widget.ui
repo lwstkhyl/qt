@@ -1,0 +1,108 @@
+<?xml version="1.0" encoding="UTF-8"?>
+<ui version="4.0">
+ <class>Widget</class>
+ <widget class="QWidget" name="Widget">
+  <property name="geometry">
+   <rect>
+    <x>0</x>
+    <y>0</y>
+    <width>569</width>
+    <height>714</height>
+   </rect>
+  </property>
+  <property name="windowTitle">
+   <string>Widget</string>
+  </property>
+  <layout class="QVBoxLayout" name="verticalLayout_3">
+   <item>
+    <widget class="QPushButton" name="open_file_button">
+     <property name="text">
+      <string>打开文件</string>
+     </property>
+    </widget>
+   </item>
+   <item>
+    <widget class="QPushButton" name="get_files">
+     <property name="text">
+      <string>查找重复文件</string>
+     </property>
+    </widget>
+   </item>
+   <item>
+    <widget class="QPushButton" name="stop_check">
+     <property name="text">
+      <string>停止检测</string>
+     </property>
+    </widget>
+   </item>
+   <item>
+    <widget class="QWidget" name="widget" native="true">
+     <layout class="QHBoxLayout" name="horizontalLayout_3">
+      <item>
+       <widget class="QWidget" name="widget_2" native="true">
+        <layout class="QHBoxLayout" name="horizontalLayout"/>
+       </widget>
+      </item>
+      <item>
+       <widget class="QLabel" name="label">
+        <property name="text">
+         <string>查找文件夹路径（无引号）：</string>
+        </property>
+       </widget>
+      </item>
+      <item>
+       <widget class="QLineEdit" name="file_path_edit"/>
+      </item>
+     </layout>
+    </widget>
+   </item>
+   <item>
+    <widget class="QWidget" name="widget_3" native="true">
+     <layout class="QHBoxLayout" name="horizontalLayout_2">
+      <item>
+       <widget class="QWidget" name="widget_6" native="true">
+        <layout class="QVBoxLayout" name="verticalLayout_2">
+         <item>
+          <widget class="QLabel" name="label_2">
+           <property name="text">
+            <string>MD5：</string>
+           </property>
+          </widget>
+         </item>
+         <item>
+          <widget class="QListWidget" name="md5_listWidget"/>
+         </item>
+        </layout>
+       </widget>
+      </item>
+      <item>
+       <widget class="QWidget" name="widget_4" native="true">
+        <layout class="QVBoxLayout" name="verticalLayout">
+         <item>
+          <widget class="QLabel" name="label_3">
+           <property name="text">
+            <string>对应的文件路径：</string>
+           </property>
+          </widget>
+         </item>
+         <item>
+          <widget class="QListWidget" name="file_listWidget"/>
+         </item>
+        </layout>
+       </widget>
+      </item>
+     </layout>
+    </widget>
+   </item>
+   <item>
+    <widget class="QProgressBar" name="progress_bar">
+     <property name="value">
+      <number>0</number>
+     </property>
+    </widget>
+   </item>
+  </layout>
+ </widget>
+ <resources/>
+ <connections/>
+</ui>
