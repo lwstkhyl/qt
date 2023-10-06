@@ -28,7 +28,7 @@ Widget::Widget(QWidget *parent)
         //如果直接写md5->check_dumplate(file_path)，则该函数仍在主线程里执行（尽管函数是在任务类中声明），但调用是在主线程中
         emit start_check_dumplate(file_path);
         ui->get_files->setDisabled(true);
-        ui->stop_check->setDisabled(false);
+        ui->stop_check->setDisabled(false);//点击开始按钮后关闭停止按钮
         ui->progress_bar->setValue(0);//进度条清零
         ui->file_listWidget->clear();
         ui->md5_listWidget->clear();//文本框清空
@@ -36,7 +36,7 @@ Widget::Widget(QWidget *parent)
     connect(ui->stop_check,&QPushButton::clicked,this,[=](){
         thread->terminate();//唯一能使线程能真正停下来，并且下次start是重新开始的方法，缺点是不稳定，当开始/停止反复切换次数很多时会崩
         ui->get_files->setDisabled(false);
-        ui->stop_check->setDisabled(true);
+        ui->stop_check->setDisabled(true);//点击停止按钮后关闭停止按钮
         ui->progress_bar->setValue(0);
     });
     qRegisterMetaType<QHash<QByteArray,QStringList>>("QHash<QByteArray,QStringList>");//出现Make sure 'QHash<QByteArray,QStringList>' is registered using qRegisterMetaType().时添加
@@ -69,7 +69,7 @@ void Widget::show_progress(int current, int total)
 {
     ui->progress_bar->setMaximum(total);
     ui->progress_bar->setValue(current);//这样设置最大值和当前值就不用自己用除法计算进度百分数了
-    if(ui->progress_bar->value()==total)//检测完成后退出线程
+    if(ui->progress_bar->value()==total)//检测完成后退出线程并关闭停止检测的按钮
     {
         thread->exit();
         thread->wait();
