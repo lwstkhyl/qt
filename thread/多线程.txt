@@ -189,6 +189,8 @@ void quick_sort::run()
 mainwindow.cpp的MainWindow::MainWindow(QWidget *parent)下connect函数前添加:
     bubble_sort * bubble=new bubble_sort;//创建冒泡排序进程对象
     quick_sort * quick=new quick_sort;//创建快速排序进程对象
+    connect(generate,&my_thread::send_array,bubble,&bubble_sort::recv_array);
+    connect(generate,&my_thread::send_array,quick,&quick_sort::recv_array);//接收随机数列表
     connect(bubble,&bubble_sort::finish,this,[=](QVector<int> list){
         for(int i=0;i<list.size();i++)
         {
